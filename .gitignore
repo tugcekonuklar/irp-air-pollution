@@ -1,0 +1,9 @@
+*.idea
+*.iml
+build
+__pycache__
+.pytest_cache/
+.pyc
+
+.DS_Store
+.ipynb_checkpoints/

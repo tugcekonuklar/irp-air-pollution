@@ -61,6 +61,22 @@ def rename_df_columns(data_frame: pd.DataFrame, prefix: str) -> pd.DataFrame:
 
     return renamed_df
 
+def drop_df_columns(data_frame: pd.DataFrame, columns_to_drop: list = None) -> pd.DataFrame:
+    """
+    Drops specified columns from a dataframe and returns a new dataframe.
+
+    Args:
+    - data_frame (pd.DataFrame): The original dataframe.
+    - columns_to_drop (list): List of columns to drop. Defaults to the specified list.
+
+    Returns:
+    - pd.DataFrame: New dataframe with specified columns dropped.
+    """
+    # Drop columns that exist in the dataframe
+    cols_to_drop = [col for col in columns_to_drop if col in data_frame.columns]
+
+    return data_frame.drop(cols_to_drop, axis=1)
+
 
 def drop_unused_df_columns(data_frame: pd.DataFrame, columns_to_drop: list = None) -> pd.DataFrame:
     """
@@ -77,14 +93,11 @@ def drop_unused_df_columns(data_frame: pd.DataFrame, columns_to_drop: list = Non
     if columns_to_drop is None:
         columns_to_drop = ['Samplingpoint', 'AggType', 'ResultTime', 'DataCapture', 'FkObservationLog']
 
-    # Drop columns that exist in the dataframe
-    cols_to_drop = [col for col in columns_to_drop if col in data_frame.columns]
-
-    return data_frame.drop(cols_to_drop, axis=1)
+    return drop_df_columns(data_frame, columns_to_drop)
 
 
 def get_clean_merged_data() -> pd.DataFrame:
-    return pd.read_csv('../data/eea/main/CLEAN_MERGED_DE_DEBB021.csv')
+    return pd.read_csv('data/CLEAN_MERGED_DE_DEBB021.csv')
 
 
 def get_stationarity(timeseries, window=12, visualize=True):
@@ -186,14 +199,14 @@ def plot_time_series_decomposition(df, column_name, period=1, figsize=(30, 100))
 
 
 # Use KNN to fill missing values
-def impute_missing_with_knn(df, column_name, n_neighbors=5, weights='distance'):
+def impute_missing_with_knn(df, column_names, n_neighbors=5, weights='distance'):
     """
-    Imputes missing values in the specified column of the dataframe using KNN.
+    Imputes missing values in the specified columns of the dataframe using KNN.
 
     Args:
     - df (pd.DataFrame): The dataframe with missing values.
-    - column_name (str): The column in which to impute missing values.
-    - n_neighbors (int): Number of neighbors for KNN. Default is 3.
+    - column_names (list): The list of columns in which to impute missing values.
+    - n_neighbors (int): Number of neighbors for KNN. Default is 5.
     - weights (str): Weight function used in prediction for KNN. Default is 'distance'.
 
     Returns:
@@ -202,14 +215,16 @@ def impute_missing_with_knn(df, column_name, n_neighbors=5, weights='distance'):
 
     df.replace([-999], np.nan, inplace=True)
 
-    # Reshape the data
-    X = df[[column_name]]
-
     # Initialize KNN imputer
     imputer = KNNImputer(n_neighbors=n_neighbors, weights=weights)
 
-    # Fit and transform the data
-    df[column_name] = imputer.fit_transform(X)
+    # Apply imputation for each column in the list
+    for column_name in column_names:
+        # Reshape the data
+        X = df[[column_name]]
+
+        # Fit and transform the data
+        df[[column_name]] = imputer.fit_transform(X)
 
     return df
 
@@ -234,3 +249,46 @@ def plot_timeseries(df, column, xlabel="Date", ylabel=None, title=None, figsize=
     plt.ylabel(ylabel if ylabel else column)
     plt.title(title if title else f"{column} Over Time")
     plt.show()
+
+
+def move_columns_to_front(df, cols_to_move):
+    """
+    Move specified columns to the front of the DataFrame.
+
+    Parameters:
+    df (pd.DataFrame): The DataFrame to reorder.
+    cols_to_move (list of str): The column names to move to the front.
+
+    Returns:
+    pd.DataFrame: The DataFrame with columns reordered.
+    """
+    # Filter out the columns to move from the original column list
+    other_cols = [col for col in df.columns if col not in cols_to_move]
+    # Create the new column order
+    new_order = cols_to_move + other_cols
+    # Reindex the DataFrame with the new column order
+    return df[new_order]
+
+def prepare_datetime_and_reorder(df, date_cols):
+    """
+    Convert specified string date columns to datetime, then to Unix timestamp,
+    and finally move the timestamp columns to the beginning of the DataFrame.
+
+    Parameters:
+    df (pd.DataFrame): The DataFrame to process.
+    date_cols (list of str): The names of the date columns to convert.
+
+    Returns:
+    pd.DataFrame: The processed DataFrame with datetime conversions and reordered columns.
+    """
+    timestamp_cols = []
+
+    # Convert date columns to datetime and then to Unix timestamp
+    for col in date_cols:
+        df[col] = pd.to_datetime(df[col])
+        timestamp_col = col + '_Timestamp'
+        df[timestamp_col] = df[col].astype('int64') // 10 ** 9
+        timestamp_cols.append(timestamp_col)
+
+    # Use the separate method to move the timestamp columns to the beginning
+    return move_columns_to_front(df, timestamp_cols)

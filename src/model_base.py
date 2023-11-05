@@ -1,19 +1,42 @@
 import os
-
-os.chdir('..')
 import matplotlib.pyplot as plt
 import numpy as np, pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
+from sklearn.decomposition import PCA
 
 FEATURES = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']
 TARGET = 'PM2.5-Value'
 
+
 def get_cleaned_df() -> pd.DataFrame:
-    return pd.read_csv('data/CLEAN_MERGED_DE_DEBB021.csv')
+    return pd.read_csv('../../data/CLEAN_MERGED_DE_DEBB021.csv')
+
+
+def set_start_index(df, index_col):
+    return df.set_index(index_col, inplace=True)
+
+
+def define_target_features(df):
+    # Separate the features and target
+    x = df[FEATURES]
+    y = df[TARGET]
+    return x, y
+
+
+def extract_target(train_data, validation_data, test_data):
+    # Extract the target variable
+    y_train = train_data[TARGET]
+    y_val = validation_data[TARGET]
+    y_test = test_data[TARGET]
+    return y_train, y_val, y_test
 
 
 def set_start_time_index(df) -> pd.DataFrame:
     return df.set_index('Start_Timestamp', inplace=True)
+
+
+def init_pca():
+    return PCA(n_components=0.95)  # Adjust based on the explained variance
 
 
 def split_data(df):
@@ -43,7 +66,7 @@ def predict(model, x):
     return model.predict(x)
 
 
-def naive_mean_absolute_scaled_error(y, y_pred):
+def naive_mean_absolute_scaled_error(y_true, y_pred):
     """
     Calculate the Mean Absolute Scaled Error (MASE) for forecasts with Naive Approach.
 
@@ -57,16 +80,16 @@ def naive_mean_absolute_scaled_error(y, y_pred):
     """
 
     # Create naive forecasts for validation and test sets
-    y_naive = np.roll(y, 1)
+    y_naive = np.roll(y_true, 1)
 
     # Calculate MAE for the naive forecasts
-    mae_naive = mean_absolute_error(y[1:], y_naive[1:])
+    mae_naive = mean_absolute_error(y_true[1:], y_naive[1:])
 
     # Calculate MASE for validation and test sets
-    mae = mean_absolute_error(y, y_pred)
+    mae = mean_absolute_error(y_true, y_pred)
     mase = mae / mae_naive
 
-    print(f"Validation MASE: {mase}")
+    print(f"MASE: {mase}")
     return mase
 
 
@@ -97,7 +120,7 @@ def evolve_error_metrics(y_true, y_pred):
     return metrics
 
 
-def plot_pm_actual_predict(df, y_pred):
+def plot_pm_true_predict(df, y_pred, set_name):
     # Plotting the actual vs predicted values for validation set
     plt.figure(figsize=(15, 5))
     y_val = df[TARGET]
@@ -107,7 +130,7 @@ def plot_pm_actual_predict(df, y_pred):
     # Predicted values - using red color with a cross marker
     plt.plot(df.index, y_pred, color='red', marker='x', label='Predicted', linestyle='None')
 
-    plt.title('Validation Set - Actual vs Predicted PM2.5')
+    plt.title(f'{set_name} Set - Actual vs Predicted PM2.5')
     plt.xlabel('Date')
     plt.ylabel('PM2.5')
     plt.legend()

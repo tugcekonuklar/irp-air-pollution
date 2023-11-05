@@ -2,53 +2,61 @@ import pandas as pd
 from statsmodels.tsa.seasonal import seasonal_decompose
 from sklearn.linear_model import LinearRegression
 from sklearn.metrics import mean_squared_error
+from sklearn.decomposition import PCA
 import numpy as np
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, mean_absolute_error
 
+FEATURES = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']
+TARGET = 'PM2.5-Value'
 
-def set_start_inde(df, index_col):
+
+def set_start_index(df, index_col):
     return df.set_index(index_col, inplace=True)
 
 
-def decompose_time_series(df, column, period):
-    decomposition = seasonal_decompose(df[column], model='additive', period=period)
-    df['trend'] = decomposition.trend
-    df['seasonal'] = decomposition.seasonal
-    df['residual'] = decomposition.resid
-    df['detrended'] = df[column] - df['trend']
-    df['deseasonalized'] = df[column] - df['seasonal']
-    return df
+def define_target_features(df, feature_columns, target_column):
+    # Separate the features and target
+    x = df[FEATURES]
+    y = df[TARGET]
+    return x, y
 
 
-def prepare_data(df, feature_columns, target_column):
-    X = df[feature_columns]
-    y = df[target_column]
-    return X, y
+def split_data(x, y, train_size, val_size):
+    train_end = int(len(x) * train_size)
+    val_end = train_end + int(len(x) * val_size)
+    x_train, y_train = x.iloc[:train_end], y.iloc[:train_end]
+    x_val, y_val = x.iloc[train_end:val_end], y.iloc[train_end:val_end]
+    x_test, y_test = x.iloc[val_end:], y.iloc[val_end:]
+    return x_train, x_val, x_test, y_train, y_val, y_test
 
 
-def split_data(X, y, train_size, val_size):
-    train_end = int(len(X) * train_size)
-    val_end = train_end + int(len(X) * val_size)
-    X_train, y_train = X.iloc[:train_end], y.iloc[:train_end]
-    X_val, y_val = X.iloc[train_end:val_end], y.iloc[train_end:val_end]
-    X_test, y_test = X.iloc[val_end:], y.iloc[val_end:]
-    return X_train, X_val, X_test, y_train, y_val, y_test
+def extract_target(train_data, validation_data, test_data):
+    # Extract the target variable
+    y_train = train_data[TARGET]
+    y_val = validation_data[TARGET]
+    y_test = test_data[TARGET]
+    return y_train, y_val, y_test
 
 
-def train_model(X_train, y_train):
-    """
-    Trains a Linear Regression model using the provided training data.
+def scale_features(train_data, validation_data, test_data):
+    # Scale the features
+    scaler = StandardScaler()
+    scaler.fit(train_data[FEATURES])  # Fit only on training data
 
-    Parameters:
-    X_train (pd.DataFrame): The training features.
-    y_train (pd.Series): The training target.
+    # Scale the datasets
+    x_train_scaled = scaler.transform(train_data[FEATURES])
+    x_val_scaled = scaler.transform(validation_data[FEATURES])
+    x_test_scaled = scaler.transform(test_data[FEATURES])
+    return x_train_scaled, x_val_scaled, x_test_scaled
 
-    Returns:
-    model: The trained Linear Regression model.
-    """
-    model = LinearRegression()
-    model.fit(X_train, y_train)
-    return model
+
+def init_pca():
+    return PCA(n_components=0.95)  # Adjust based on the explained variance
+
+
+
+
 
 
 def mean_absolute_percentage_error(y_true, y_pred):
@@ -84,13 +92,13 @@ def mean_absolute_scaled_error(y_true, y_pred, y_train):
     return errors.mean() / d
 
 
-def evaluate_model(model, X_val, y_val, df_val, y_train):
+def evaluate_model(model, x_val, y_val, df_val, y_train):
     """
     Evaluates the trained model using validation data and calculates various metrics.
 
     Parameters:
     model: The trained Linear Regression model.
-    X_val (pd.DataFrame): The validation features.
+    x_val (pd.DataFrame): The validation features.
     y_val (pd.Series): The validation target.
     df_val (pd.DataFrame): DataFrame containing 'trend' and 'seasonal' columns for the validation data.
     y_train (pd.Series): The training target for calculating MASE.
@@ -99,7 +107,7 @@ def evaluate_model(model, X_val, y_val, df_val, y_train):
     metrics (dict): A dictionary containing various evaluation metrics.
     y_val_pred (pd.Series): Predicted values on the validation set.
     """
-    y_val_pred = model.predict(X_val)
+    y_val_pred = model.predict(x_val)
     # Reapply trend and seasonality if they were removed
     y_val_pred += df_val['trend'] + df_val['seasonal']
     mse = mean_squared_error(y_val + df_val['trend'] + df_val['seasonal'], y_val_pred)

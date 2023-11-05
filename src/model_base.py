@@ -120,7 +120,7 @@ def evolve_error_metrics(y_true, y_pred):
     return metrics
 
 
-def plot_pm_true_predict(df, y_pred, set_name):
+def plot_pm_true_predict(df, y_pred, name):
     # Plotting the actual vs predicted values for validation set
     plt.figure(figsize=(15, 5))
     y_val = df[TARGET]
@@ -130,8 +130,9 @@ def plot_pm_true_predict(df, y_pred, set_name):
     # Predicted values - using red color with a cross marker
     plt.plot(df.index, y_pred, color='red', marker='x', label='Predicted', linestyle='None')
 
-    plt.title(f'{set_name} Set - Actual vs Predicted PM2.5')
+    plt.title(f'{name} Set - Actual vs Predicted PM2.5')
     plt.xlabel('Date')
     plt.ylabel('PM2.5')
     plt.legend()
+    plt.grid()
     plt.show()

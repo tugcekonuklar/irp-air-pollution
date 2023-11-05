@@ -11,10 +11,11 @@ TARGET = 'PM2.5-Value'
 def get_cleaned_df() -> pd.DataFrame:
     return pd.read_csv('../../data/CLEAN_MERGED_DE_DEBB021.csv')
 
+def get_cleaned_datetime_df() -> pd.DataFrame:
+    return pd.read_csv('../../data/DATETIME_CLEAN_MERGED_DE_DEBB021.csv')
 
 def set_start_index(df, index_col):
     return df.set_index(index_col, inplace=True)
-
 
 def define_target_features(df):
     # Separate the features and target
@@ -31,12 +32,20 @@ def extract_target(train_data, validation_data, test_data):
     return y_train, y_val, y_test
 
 
+def extract_features(train_data, validation_data, test_data):
+    return train_data[FEATURES], validation_data[FEATURES], test_data[FEATURES]
+
+
 def set_start_time_index(df) -> pd.DataFrame:
     return df.set_index('Start_Timestamp', inplace=True)
 
 
 def init_pca():
     return PCA(n_components=0.95)  # Adjust based on the explained variance
+
+
+# def pca_transform(pca, df):
+#     return pca.fit_transform(df)
 
 
 def split_data(df):

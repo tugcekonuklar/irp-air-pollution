@@ -5,6 +5,7 @@ from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.seasonal import seasonal_decompose
 from sklearn.impute import KNNImputer
 import numpy as np
+import statsmodels.api as sm
 
 
 def merge_dataframes_on_columns(dfs, columns=['Start', 'End'], how='outer'):
@@ -60,6 +61,7 @@ def rename_df_columns(data_frame: pd.DataFrame, prefix: str) -> pd.DataFrame:
     renamed_df = data_frame.rename(columns=columns)
 
     return renamed_df
+
 
 def drop_df_columns(data_frame: pd.DataFrame, columns_to_drop: list = None) -> pd.DataFrame:
     """
@@ -173,7 +175,7 @@ def plot_differencing(df, order=2):
     plt.show()
 
 
-def plot_time_series_decomposition(df, column_name, period=1, figsize=(30, 100)):
+def plot_time_series_decomposition(df, column_name, period=1, figsize=(10, 8)):
     """
     Plots the decomposition of a time series into its trend, seasonality, and residuals.
 
@@ -228,6 +230,7 @@ def impute_missing_with_knn(df, column_names, n_neighbors=5, weights='distance')
 
     return df
 
+
 def plot_timeseries(df, column, xlabel="Date", ylabel=None, title=None, figsize=(30, 20)):
     """
     Plots a timeseries from a given dataframe column.
@@ -269,6 +272,7 @@ def move_columns_to_front(df, cols_to_move):
     # Reindex the DataFrame with the new column order
     return df[new_order]
 
+
 def prepare_datetime_and_reorder(df, date_cols):
     """
     Convert specified string date columns to datetime, then to Unix timestamp,
@@ -292,3 +296,61 @@ def prepare_datetime_and_reorder(df, date_cols):
 
     # Use the separate method to move the timestamp columns to the beginning
     return move_columns_to_front(df, timestamp_cols)
+
+
+def check_seasonality_and_trend(df, column_name='PM2.5-Value', freq='H'):
+    # Check if DataFrame has a DateTimeIndex with frequency set
+    if not isinstance(df.index, pd.DatetimeIndex):
+        return pd.DataFrame({
+            'Error': ['DataFrame index is not a DateTimeIndex']
+        })
+    if df.index.freq is None:
+        try:
+            df = df.asfreq(freq)
+            if df.index.freq is None:
+                return pd.DataFrame({
+                    'Error': ['Unable to set a frequency on DataFrame index']
+                })
+        except ValueError as e:
+            return pd.DataFrame({
+                'Error': [str(e)]
+            })
+
+    # Extract the time series data
+    time_series = df[column_name].dropna()  # Ensure there are no NaNs in the series
+
+    # Decompose the time series using the seasonal_decompose method
+    decomposition = sm.tsa.seasonal_decompose(time_series, model='additive', period=24)  # Assuming 24-hour seasonality
+    trend = decomposition.trend
+    seasonal = decomposition.seasonal
+    residual = decomposition.resid
+
+    # Perform Dickey-Fuller test
+    dftest = adfuller(time_series.dropna(), autolag='AIC')
+    dfoutput = pd.Series(dftest[0:4], index=['Test Statistic', 'p-value', '#Lags Used', 'Number of Observations Used'])
+    for key, value in dftest[4].items():
+        dfoutput['Critical Value (%s)' % key] = value
+
+    # Plotting the decomposed components
+    fig, axes = plt.subplots(4, 1, figsize=(10, 8))
+    time_series.plot(ax=axes[0], title='Original')
+    axes[0].set_ylabel('Original')
+    trend.plot(ax=axes[1], title='Trend')
+    axes[1].set_ylabel('Trend')
+    seasonal.plot(ax=axes[2], title='Seasonality')
+    axes[2].set_ylabel('Seasonality')
+    residual.plot(ax=axes[3], title='Residuals')
+    axes[3].set_ylabel('Residuals')
+    plt.tight_layout()
+    plt.show()
+
+    return pd.DataFrame({
+        'Dickey-Fuller Test Statistic': [dfoutput['Test Statistic']],
+        'p-value': [dfoutput['p-value']],
+        '#Lags Used': [dfoutput['#Lags Used']],
+        'Number of Observations': [dfoutput['Number of Observations Used']],
+        'Critical Value 1%': [dfoutput['Critical Value (1%)']],
+        'Critical Value 5%': [dfoutput['Critical Value (5%)']],
+        'Critical Value 10%': [dfoutput['Critical Value (10%)']],
+        'ADF Result': ['Stationary' if dfoutput['p-value'] < 0.05 else 'Non-Stationary']
+    })

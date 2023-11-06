@@ -4,7 +4,9 @@ import numpy as np, pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 from sklearn.decomposition import PCA
 import warnings
+
 warnings.filterwarnings('ignore')
+from sklearn.model_selection import TimeSeriesSplit
 
 FEATURES = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']
 TARGET = 'PM2.5-Value'
@@ -13,11 +15,14 @@ TARGET = 'PM2.5-Value'
 def get_cleaned_df() -> pd.DataFrame:
     return pd.read_csv('../../data/CLEAN_MERGED_DE_DEBB021.csv')
 
+
 def get_cleaned_datetime_df() -> pd.DataFrame:
     return pd.read_csv('../../data/DATETIME_CLEAN_MERGED_DE_DEBB021.csv')
 
+
 def set_start_index(df, index_col):
     return df.set_index(index_col, inplace=True)
+
 
 def define_target_features(df):
     # Separate the features and target
@@ -68,6 +73,47 @@ def split_data(df):
     print(f"Test set size: {test_data.shape[0]}")
     return train_data, validation_data, test_data
 
+#
+# def split_time_series_dataframe(df, target_column_name, n_splits=5):
+#     """
+#     Splits the DataFrame into train, validation, and test sets using TimeSeriesSplit.
+#
+#     Parameters:
+#     df: DataFrame
+#         The complete dataset containing features and the target column.
+#     target_column_name: str
+#         The name of the target variable column.
+#     n_splits: int, default=5
+#         Number of splits for the TimeSeriesSplit.
+#
+#     Returns:
+#     df_train, df_validation, df_test: tuple of DataFrames
+#         Train, validation, and test DataFrame splits.
+#     """
+#     X = df.drop(columns=[target_column_name])
+#     y = df[target_column_name]
+#
+#     tscv = TimeSeriesSplit(n_splits=n_splits)
+#
+#     train_indices, validation_indices, test_indices = [], [], []
+#
+#     for i, (train_index, test_index) in enumerate(tscv.split(X, y)):
+#         if i == 0:
+#             train_indices = train_index
+#         elif i == 1:
+#             validation_indices = test_index
+#         else:
+#             test_indices.extend(test_index)
+#
+#     df_train = df.iloc[train_indices]
+#     df_validation = df.iloc[validation_indices]
+#     df_test = df.iloc[test_indices]
+#
+#     return df_train, df_validation, df_test
+#
+#
+# def split_time_series_data(df):
+#     return split_time_series_dataframe(df, TARGET, n_splits=5)
 
 def train(model, x_train, y_train):
     model.fit(x_train, y_train)

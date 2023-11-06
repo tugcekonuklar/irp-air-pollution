@@ -1,6 +1,6 @@
 from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Ridge
-from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 from scipy.stats import uniform
 from sklearn.linear_model import Lasso
 from scipy.stats import loguniform
@@ -43,11 +43,13 @@ def init_ridge_model_with_random():
     # Here, we define a uniform distribution over a log scale for the alpha parameter
     param_distributions = {'alpha': uniform(1e-4, 1e4)}
 
+    tscv = TimeSeriesSplit(n_splits=5)
+
     # Set up the random search with cross-validation
     # n_iter sets the number of different combinations to try
     # cv is the number of folds for cross-validation
     # scoring determines the metric used to evaluate the models
-    return RandomizedSearchCV(estimator=model, param_distributions=param_distributions, n_iter=100, cv=5,
+    return RandomizedSearchCV(estimator=model, param_distributions=param_distributions, n_iter=100, cv=tscv,
                               scoring='neg_mean_absolute_error', verbose=1, random_state=42, n_jobs=-1)
 
 
@@ -58,12 +60,14 @@ def init_lasso_model_with_random():
     # loguniform is useful for alpha because it spans several orders of magnitude
     param_distributions = {'alpha': loguniform(1e-4, 1e0)}
 
+    tscv = TimeSeriesSplit(n_splits=5)
+
     # Set up the random search with cross-validation
     return RandomizedSearchCV(
         estimator=model,
         param_distributions=param_distributions,
         n_iter=100,
-        cv=5,
+        cv=tscv,
         scoring='neg_mean_absolute_error',
         verbose=1,
         random_state=42,

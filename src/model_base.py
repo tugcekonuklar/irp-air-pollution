@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np, pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 from sklearn.decomposition import PCA
+import warnings
+warnings.filterwarnings('ignore')
 
 FEATURES = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']
 TARGET = 'PM2.5-Value'

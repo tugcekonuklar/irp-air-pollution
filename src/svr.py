@@ -5,6 +5,8 @@ from sklearn.pipeline import Pipeline
 import model_base as mb
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.preprocessing import StandardScaler
+from datetime import datetime
+from sklearn.model_selection import TimeSeriesSplit
 
 FEATURES = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']
 TARGET = 'PM2.5-Value'
@@ -19,7 +21,7 @@ def init_svr_pipeline():
 
 
 def tune_and_evaluate_svr(df):
-    n_iter_search = 20
+    n_iter_search = 10
     random_state = 42
 
     # Define your features and target variable
@@ -29,6 +31,7 @@ def tune_and_evaluate_svr(df):
     # Extract the target variable
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
 
+    print(f'Started {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     # Define a pipeline combining a scaler, PCA, and SVR
     pipeline = Pipeline([
         ('scaler', StandardScaler()),
@@ -45,27 +48,36 @@ def tune_and_evaluate_svr(df):
         'svr__gamma': np.logspace(-3, 1, 5)  # Relevant for 'rbf', 'poly' and 'sigmoid'
     }
 
+    # Create the TimeSeriesSplit object
+    tscv = TimeSeriesSplit(n_splits=5)
+
     # Create the RandomizedSearchCV object
     random_search = RandomizedSearchCV(pipeline, param_distributions=param_distributions,
                                        n_iter=n_iter_search, scoring='neg_mean_squared_error',
-                                       cv=5, random_state=random_state)
+                                       cv=tscv, n_jobs=1, random_state=random_state)
 
+    print(f'Fitted {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     # Fit the model on the training data
-    random_search.fit(X_train, y_train)
-
-    # Check the performance on the validation set
-    y_val_pred = random_search.predict(X_val)
-    mb.evolve_error_metrics(y_val, y_val_pred)
-    mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
+    try:
+        random_search.fit(X_train, y_train)
+    except Exception as ex:
+        print(ex)
 
     # Print the best parameters and best score from the training
     print(f"Best parameters: {random_search.best_params_}")
     print(f"Best score: {-random_search.best_score_}")
+
+    print(f'Prediction started  {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    # Check the performance on the validation set
+    y_val_pred = random_search.predict(X_val)
+    mb.evolve_error_metrics(y_val, y_val_pred)
+    mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
 
     # Use the best estimator to predict on the test set
     y_test_pred = random_search.best_estimator_.predict(X_test)
     mb.evolve_error_metrics(y_test, y_test_pred)
     mb.naive_mean_absolute_scaled_error(y_test, y_test_pred)
 
+    print(f'Finished {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     # Return the best estimator and the MSE scores
     return random_search.best_estimator_

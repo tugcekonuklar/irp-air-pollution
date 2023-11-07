@@ -1,4 +1,5 @@
 import os
+from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 import numpy as np, pandas as pd
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
@@ -51,6 +52,18 @@ def init_pca():
     return PCA(n_components=0.95)  # Adjust based on the explained variance
 
 
+def scale_features(train_data, validation_data, test_data):
+    # Scale the features
+    scaler = StandardScaler()
+    scaler.fit(train_data[FEATURES])  # Fit only on training data
+
+    # Scale the datasets
+    x_train_scaled = scaler.transform(train_data[FEATURES])
+    x_val_scaled = scaler.transform(validation_data[FEATURES])
+    x_test_scaled = scaler.transform(test_data[FEATURES])
+    return x_train_scaled, x_val_scaled, x_test_scaled
+
+
 # def pca_transform(pca, df):
 #     return pca.fit_transform(df)
 
@@ -72,6 +85,7 @@ def split_data(df):
     print(f"Validation set size: {validation_data.shape[0]}")
     print(f"Test set size: {test_data.shape[0]}")
     return train_data, validation_data, test_data
+
 
 #
 # def split_time_series_dataframe(df, target_column_name, n_splits=5):
@@ -192,4 +206,33 @@ def plot_pm_true_predict(df, y_pred, name):
     plt.ylabel('PM2.5')
     plt.legend()
     plt.grid()
+    plt.show()
+
+
+def plot_time_series(train_data, y_train, test_data, y_test, test_predictions_mean, y_test_pred, name):
+    """
+    Plots the time series data including training, validation sets and predictions with confidence intervals.
+
+    Parameters:
+    train_data (DataFrame): The training dataset with a DateTimeIndex.
+    y_train (Series): The training data target values.
+    test_data (DataFrame): The test dataset with a DateTimeIndex.
+    y_test (Series): The test data target values.
+    test_predictions_mean (Series): The predicted mean values for the tested data.
+    y_test_pred (PredictionResults): The prediction results object that has a `conf_int` method for confidence intervals.
+    """
+    plt.figure(figsize=(15,5))
+
+    plt.title(f'{name} Set - Actual vs Predicted PM2.5')
+    plt.xlabel('Date')
+    plt.ylabel('PM2.5')
+
+    plt.plot(train_data.index, y_train, label='Train')
+    plt.plot(test_data.index, y_test, label=name, marker='o', linestyle='-', color='green')
+    plt.plot(test_data.index, test_predictions_mean, label='Predictions', marker='x', linestyle='None' , color='red')
+    plt.fill_between(test_data.index,
+                     y_test_pred.conf_int().iloc[:, 0],
+                     y_test_pred.conf_int().iloc[:, 1],
+                     color='pink', alpha=0.3)
+    plt.legend()
     plt.show()

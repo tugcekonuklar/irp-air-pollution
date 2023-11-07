@@ -1,4 +1,3 @@
-from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 from scipy.stats import uniform
@@ -19,19 +18,6 @@ TARGET = 'PM2.5-Value'
 #     x_test, y_test = x.iloc[val_end:], y.iloc[val_end:]
 #     return x_train, x_val, x_test, y_train, y_val, y_test
 #
-
-
-def scale_features(train_data, validation_data, test_data):
-    # Scale the features
-    scaler = StandardScaler()
-    scaler.fit(train_data[FEATURES])  # Fit only on training data
-
-    # Scale the datasets
-    x_train_scaled = scaler.transform(train_data[FEATURES])
-    x_val_scaled = scaler.transform(validation_data[FEATURES])
-    x_test_scaled = scaler.transform(test_data[FEATURES])
-    return x_train_scaled, x_val_scaled, x_test_scaled
-
 
 def init_linear_model():
     return LinearRegression()

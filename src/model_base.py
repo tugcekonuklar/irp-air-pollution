@@ -48,6 +48,11 @@ def set_start_time_index(df) -> pd.DataFrame:
     return df.set_index('Start_Timestamp', inplace=True)
 
 
+def set_start_date_time_index(df) -> pd.DataFrame:
+    df['Start'] = pd.to_datetime(df['Start'])
+    return set_start_index(df, 'Start')
+
+
 def init_pca():
     return PCA(n_components=0.95)  # Adjust based on the explained variance
 
@@ -221,7 +226,7 @@ def plot_time_series(train_data, y_train, test_data, y_test, test_predictions_me
     test_predictions_mean (Series): The predicted mean values for the tested data.
     y_test_pred (PredictionResults): The prediction results object that has a `conf_int` method for confidence intervals.
     """
-    plt.figure(figsize=(15,5))
+    plt.figure(figsize=(15, 5))
 
     plt.title(f'{name} Set - Actual vs Predicted PM2.5')
     plt.xlabel('Date')
@@ -229,7 +234,7 @@ def plot_time_series(train_data, y_train, test_data, y_test, test_predictions_me
 
     plt.plot(train_data.index, y_train, label='Train')
     plt.plot(test_data.index, y_test, label=name, marker='o', linestyle='-', color='green')
-    plt.plot(test_data.index, test_predictions_mean, label='Predictions', marker='x', linestyle='None' , color='red')
+    plt.plot(test_data.index, test_predictions_mean, label='Predictions', marker='x', linestyle='None', color='red')
     plt.fill_between(test_data.index,
                      y_test_pred.conf_int().iloc[:, 0],
                      y_test_pred.conf_int().iloc[:, 1],

@@ -54,7 +54,7 @@ def tune_and_evaluate_svr(df):
     # Create the RandomizedSearchCV object
     random_search = RandomizedSearchCV(pipeline, param_distributions=param_distributions,
                                        n_iter=n_iter_search, scoring='neg_mean_squared_error',
-                                       cv=tscv, n_jobs=1, random_state=random_state)
+                                       cv=tscv, n_jobs=1, random_state=random_state, verbose=1)
 
     print(f'Fitted {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
     # Fit the model on the training data

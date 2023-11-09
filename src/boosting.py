@@ -4,6 +4,7 @@ import xgboost as xgb
 from sklearn.pipeline import Pipeline
 from sklearn.ensemble import GradientBoostingRegressor, HistGradientBoostingRegressor, AdaBoostRegressor
 import model_base as mb
+from catboost import CatBoostRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.preprocessing import StandardScaler
@@ -18,6 +19,7 @@ GRADIENT_BOOSTING = 'gradient_boosting'
 HISTOGRAM_GRADIENT_BOOSTING = 'histogram_gradient_boosting'
 XGBOOST = 'xgboost'
 ADABOOST = 'adaboost'
+CATBOOST = 'catboost'
 
 GBR_MODEL = ('gbr', GradientBoostingRegressor(learning_rate=0.1,
                                               max_depth=3,
@@ -34,9 +36,15 @@ XGB_MODEL = ('xgb', xgb.XGBRegressor(n_estimators=205,
                                      subsample=0.7838501639099957,
                                      colsample_bytree=0.831261142176991,
                                      min_child_weight=6))
-ADA_MODEL = AdaBoostRegressor(DecisionTreeRegressor(max_depth=10),
-                              learning_rate=0.6892612104349699,
-                              n_estimators=237)
+ADA_MODEL = AdaBoostRegressor(DecisionTreeRegressor(max_depth=8),
+                              learning_rate=0.16297508346206444,
+                              n_estimators=70)
+
+CAT_BOOSTING = CatBoostRegressor(
+    learning_rate=0.1,
+    l2_leaf_reg=3,
+    iterations=200,
+    depth=4)
 
 
 def init_boosting_model(algorithm: str):
@@ -60,6 +68,8 @@ def init_boosting_model(algorithm: str):
         ])
     elif algorithm == ADABOOST:
         return ADA_MODEL
+    elif algorithm == CATBOOST:
+        return CAT_BOOSTING
     else:
         raise ValueError("Unknown algorithm enum provided!")
 
@@ -106,6 +116,15 @@ def get_ada_param_distribution():
     }
 
 
+def get_catboost_distribution():
+    return {
+        'depth': [4, 6, 8, 10],
+        'learning_rate': np.logspace(-3, 0, 10),
+        'iterations': [100, 200, 500, 1000],
+        'l2_leaf_reg': [1, 3, 5, 7, 9]
+    }
+
+
 def get_param_distribution_by_algorithm(algorithm: str):
     if algorithm == GRADIENT_BOOSTING:
         return get_gb_param_distribution()
@@ -115,6 +134,8 @@ def get_param_distribution_by_algorithm(algorithm: str):
         return get_xgb_param_distribution()
     elif algorithm == ADABOOST:
         return get_ada_param_distribution()
+    elif algorithm == CATBOOST:
+        return get_catboost_distribution()
     else:
         raise ValueError("Unknown algorithm enum provided!")
 
@@ -132,7 +153,14 @@ def tune_and_evaluate_boosting(df, ensemble_alg: str):
 
     print(f'Started {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
 
-    model = init_boosting_model(ensemble_alg)
+    model = None
+    if ensemble_alg == ADABOOST:
+        model = Pipeline([
+            ('scaler', StandardScaler()),
+            ('adaboost', AdaBoostRegressor(DecisionTreeRegressor(), random_state=42))
+        ])
+    else:
+        model = init_boosting_model(ensemble_alg)
 
     # Define the parameter space for the grid search
     param_distributions = get_param_distribution_by_algorithm(ensemble_alg)

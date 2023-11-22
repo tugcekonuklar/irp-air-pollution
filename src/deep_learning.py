@@ -105,8 +105,8 @@ def ann_train_and_evolve(df):
     params = {
         'learning_rate': 0.01,
         'n_layers': 2,
-        'n_nodes': 64,
-        'dropout_rate': 0.2
+        'n_nodes': 32,
+        'dropout_rate': 0.1
     }
 
     # Create the ANN model with the specified parameters

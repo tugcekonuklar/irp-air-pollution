@@ -79,6 +79,17 @@ def scale_features(train_data, validation_data, test_data, scaler):
     x_test_scaled = scaler.transform(test_data[FEATURES])
     return x_train_scaled, x_val_scaled, x_test_scaled
 
+def scale_target(train_data, validation_data, test_data, scaler):
+    # Scale the features
+    scaler.fit(train_data[TARGET])  # Fit only on training data
+
+    # Scale the datasets
+    y_train_scaled = scaler.transform(train_data[TARGET])
+    y_val_scaled = scaler.transform(validation_data[TARGET])
+    y_test_scaled = scaler.transform(test_data[TARGET])
+    return y_train_scaled, y_val_scaled, y_test_scaled
+
+
 
 # def pca_transform(pca, df):
 #     return pca.fit_transform(df)

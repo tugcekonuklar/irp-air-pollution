@@ -1,13 +1,13 @@
-import os
-from sklearn.preprocessing import StandardScaler
-import matplotlib.pyplot as plt
-import numpy as np, pandas as pd
-from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
-from sklearn.decomposition import PCA
 import warnings
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from sklearn.decomposition import PCA
+from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
+from sklearn.preprocessing import StandardScaler
+
 warnings.filterwarnings('ignore')
-from sklearn.model_selection import TimeSeriesSplit
 
 FEATURES = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']
 TARGET = 'PM2.5-Value'
@@ -90,11 +90,6 @@ def scale_target(train_data, validation_data, test_data, scaler):
     return y_train_scaled, y_val_scaled, y_test_scaled
 
 
-
-# def pca_transform(pca, df):
-#     return pca.fit_transform(df)
-
-
 def split_data(df):
     train_ratio = 0.6
     validation_ratio = 0.2
@@ -113,48 +108,6 @@ def split_data(df):
     print(f"Test set size: {test_data.shape[0]}")
     return train_data, validation_data, test_data
 
-
-#
-# def split_time_series_dataframe(df, target_column_name, n_splits=5):
-#     """
-#     Splits the DataFrame into train, validation, and test sets using TimeSeriesSplit.
-#
-#     Parameters:
-#     df: DataFrame
-#         The complete dataset containing features and the target column.
-#     target_column_name: str
-#         The name of the target variable column.
-#     n_splits: int, default=5
-#         Number of splits for the TimeSeriesSplit.
-#
-#     Returns:
-#     df_train, df_validation, df_test: tuple of DataFrames
-#         Train, validation, and test DataFrame splits.
-#     """
-#     X = df.drop(columns=[target_column_name])
-#     y = df[target_column_name]
-#
-#     tscv = TimeSeriesSplit(n_splits=n_splits)
-#
-#     train_indices, validation_indices, test_indices = [], [], []
-#
-#     for i, (train_index, test_index) in enumerate(tscv.split(X, y)):
-#         if i == 0:
-#             train_indices = train_index
-#         elif i == 1:
-#             validation_indices = test_index
-#         else:
-#             test_indices.extend(test_index)
-#
-#     df_train = df.iloc[train_indices]
-#     df_validation = df.iloc[validation_indices]
-#     df_test = df.iloc[test_indices]
-#
-#     return df_train, df_validation, df_test
-#
-#
-# def split_time_series_data(df):
-#     return split_time_series_dataframe(df, TARGET, n_splits=5)
 
 def train(model, x_train, y_train):
     model.fit(x_train, y_train)
@@ -222,6 +175,37 @@ def plot_pm_true_predict(df, y_pred, name):
     # Plotting the actual vs predicted values for validation set
     plt.figure(figsize=(15, 5))
     y_val = df[TARGET]
+    # Actual values - using blue color with a line marker
+    plt.plot(df.index, y_val, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
+
+    # Predicted values - using red color with a cross marker
+    plt.plot(df.index, y_pred, color='red', marker='x', label='Predicted', linestyle='None')
+
+    plt.title(f'{name} Set - Actual vs Predicted PM2.5')
+    plt.xlabel('Date')
+    plt.ylabel('PM2.5')
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+
+def plot_pm_true_predict_dl(df, y_pred, name):
+    df = df.iloc[1:]
+    # Ensure y_pred is a 1D array if it has a single column
+    if y_pred.ndim == 2 and y_pred.shape[1] == 1:
+        y_pred = y_pred.ravel()
+
+    # Extract the target values from the dataframe
+    y_val = df[TARGET]
+
+    # Check if y_pred and y_val have the same length
+    if len(y_pred) != len(y_val):
+        raise ValueError(
+            f"y_pred and {TARGET} must have the same length, but have shapes {y_pred.shape} and {y_val.shape}")
+
+    # Plotting the actual vs predicted values
+    plt.figure(figsize=(15, 5))
+
     # Actual values - using blue color with a line marker
     plt.plot(df.index, y_val, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
 

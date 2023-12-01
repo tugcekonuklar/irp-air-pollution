@@ -1,11 +1,29 @@
-import pandas as pd
 import matplotlib.pyplot as plt
-from statsmodels.tsa.stattools import adfuller
+import numpy as np
+import pandas as pd
+import seaborn as sns
+import statsmodels.api as sm
+from pandas.plotting import autocorrelation_plot
+from scipy.stats import skew
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.impute import KNNImputer
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.seasonal import seasonal_decompose
-from sklearn.impute import KNNImputer
-import numpy as np
-import statsmodels.api as sm
+from statsmodels.tsa.stattools import adfuller
+
+import model_base as mb
+
+HOURLY_DATETIME_FILE_PATH = '../data/HOURLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
+HOURLY_TIMESTAMP_FILE_PATH = '../data/HOURLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
+
+DAILY_DATETIME_FILE_PATH = '../data/DAILY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
+DAILY_TIMESTAMP_FILE_PATH = '../data/DAILY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
+
+WEEKLY_DATETIME_FILE_PATH = '../data/WEEKLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
+WEEKLY_TIMESTAMP_FILE_PATH = '../data/WEEKLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
+
+MONTHLY_DATETIME_FILE_PATH = '../data/MONTLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
+MONTHLY_TIMESTAMP_FILE_PATH = '../data/MONTLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
 
 
 def merge_dataframes_on_columns(dfs, columns=['Start', 'End'], how='outer'):
@@ -30,6 +48,7 @@ def merge_dataframes_on_columns(dfs, columns=['Start', 'End'], how='outer'):
     for df in dfs[1:]:
         df_merged = df_merged.merge(df, on=columns, how=how)
 
+    df_merged = df_merged.sort_values(by='Start')
     return df_merged
 
 
@@ -120,7 +139,7 @@ def get_stationarity(timeseries, window=12, visualize=True):
 
     # Visualization of rolling statistics
     if visualize:
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(8, 6))
         plt.plot(timeseries, color='blue', label='Original')
         plt.plot(rolling_mean, color='red', label='Rolling Mean')
         plt.plot(rolling_std, color='black', label='Rolling Std')
@@ -151,7 +170,7 @@ def plot_differencing(df, order=2):
     """
 
     # Plotting parameters
-    plt.rcParams.update({'figure.figsize': (9, 7), 'figure.dpi': 120})
+    plt.rcParams.update({'figure.figsize': (10, 6), 'figure.dpi': 120})
 
     # Setup the figure and axes
     fig, axes = plt.subplots(order + 1, 3, sharex=True)
@@ -175,7 +194,7 @@ def plot_differencing(df, order=2):
     plt.show()
 
 
-def plot_time_series_decomposition(df, column_name, period=1, figsize=(10, 8)):
+def plot_time_series_decomposition(df, column_name, period=1, figsize=(10, 6)):
     """
     Plots the decomposition of a time series into its trend, seasonality, and residuals.
 
@@ -298,6 +317,13 @@ def prepare_datetime_and_reorder(df, date_cols):
     return move_columns_to_front(df, timestamp_cols)
 
 
+def from_datetime_to_timestamp(df, col):
+    df[col] = pd.to_datetime(df[col])
+    timestamp_col = col + '_Timestamp'
+    df[timestamp_col] = df[col].astype('int64') // 10 ** 9
+    return df
+
+
 def check_seasonality_and_trend(df, column_name='PM2.5-Value', freq='H'):
     # Check if DataFrame has a DateTimeIndex with frequency set
     if not isinstance(df.index, pd.DatetimeIndex):
@@ -332,7 +358,7 @@ def check_seasonality_and_trend(df, column_name='PM2.5-Value', freq='H'):
         dfoutput['Critical Value (%s)' % key] = value
 
     # Plotting the decomposed components
-    fig, axes = plt.subplots(4, 1, figsize=(10, 8))
+    fig, axes = plt.subplots(4, 1, figsize=(10, 6))
     time_series.plot(ax=axes[0], title='Original')
     axes[0].set_ylabel('Original')
     trend.plot(ax=axes[1], title='Trend')
@@ -354,3 +380,328 @@ def check_seasonality_and_trend(df, column_name='PM2.5-Value', freq='H'):
         'Critical Value 10%': [dfoutput['Critical Value (10%)']],
         'ADF Result': ['Stationary' if dfoutput['p-value'] < 0.05 else 'Non-Stationary']
     })
+
+
+def analyze_skewness(df, column_name):
+    """
+    Calculate and visualize the skewness of a time series dataset.
+
+    Args:
+    - df (pd.DataFrame): DataFrame containing the time series data.
+    - column_name (str): Name of the column with time series data.
+
+    Returns:
+    - float: Skewness of the data.
+    """
+    # Calculate skewness
+    data_skewness = skew(df[column_name])
+    print(f"Skewness of the data: {data_skewness}")
+
+    # Create a figure and a set of subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 4))  # 1 row, 2 columns
+
+    # Histogram on the first subplot
+    sns.histplot(df[column_name], kde=True, ax=ax1)
+    ax1.set_title('Histogram of Time Series Data')
+    ax1.set_xlabel(column_name)
+    ax1.set_ylabel('Frequency')
+
+    # Density Plot on the second subplot
+    sns.kdeplot(df[column_name], fill=True, ax=ax2)
+    ax2.set_title('Density Plot of Time Series Data')
+    ax2.set_xlabel(column_name)
+
+    # Automatically adjust subplot params for better layout
+    plt.tight_layout()
+
+    # Show the plot
+    plt.show()
+
+    return data_skewness
+
+
+def detect_and_show_outliers(df, column_name):
+    """
+    Detects outliers in a time series dataset and visualizes them.
+
+    Args:
+    - df (pd.DataFrame): DataFrame containing the time series data.
+    - column_name (str): Name of the column with time series data.
+
+    Returns:
+    - pd.DataFrame: DataFrame containing the outliers.
+    """
+    # Create a figure and a set of subplots
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 4))  # 1 row, 2 columns
+
+    # Time Series Plot on the first subplot
+    ax1.plot(df[column_name], marker='o', linestyle='-')
+    ax1.set_title('Time Series Plot')
+    ax1.set_xlabel('Time')
+    ax1.set_ylabel(column_name)
+
+    # Box Plot on the second subplot
+    ax2.boxplot(df[column_name], vert=False)
+    ax2.set_title('Box Plot')
+    ax2.set_xlabel(column_name)
+
+    # Automatically adjust subplot params for better layout
+    plt.tight_layout()
+
+    # Show the plot
+    plt.show()
+
+    # Identify outliers using IQR
+    Q1 = df[column_name].quantile(0.25)
+    Q3 = df[column_name].quantile(0.75)
+    IQR = Q3 - Q1
+    outliers = df[(df[column_name] < (Q1 - 1.5 * IQR)) | (df[column_name] > (Q3 + 1.5 * IQR))]
+
+    print("Outliers using IQR method:")
+    print(outliers)
+
+    return outliers
+
+
+def correlation_matrix(df, figsize=(20, 8), cmap='coolwarm', title="Correlation Matrix"):
+    """
+    Generates a heatmap for the correlation matrix of the DataFrame.
+
+    Args:
+    - df (pd.DataFrame): DataFrame for which to generate the correlation matrix.
+    - figsize (tuple): Size of the figure (width, height).
+    - cmap (str): Colormap for the heatmap.
+    - title (str): Title of the plot.
+    """
+    if df.empty:
+        raise ValueError("DataFrame is empty")
+
+    correlation_matrix = df.corr()
+    plt.figure(figsize=figsize)
+    sns.heatmap(correlation_matrix, annot=True, cmap=cmap)
+    plt.title(title)
+    plt.show()
+
+
+def pairplot(df, title="Pairplot"):
+    """
+    Generates a pairplot for the DataFrame.
+
+    Args:
+    - df (pd.DataFrame): DataFrame for which to generate the pairplot.
+    - title (str): Title of the plot.
+    """
+    if df.empty:
+        raise ValueError("DataFrame is empty")
+
+    pair_plot = sns.pairplot(df)
+    pair_plot.fig.suptitle(title, y=1.02)  # Adjust the title position
+    plt.show()
+
+
+def feature_importance(df):
+    # Train a simple Random Forest model and check the feature importances. 
+    # Define your features and target variable
+    train_data, validation_data, test_data = mb.split_data(df)
+    # Extract the features
+    X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
+    # Extract the target variable
+    y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
+
+    # Assuming X is your feature set and y is the target variable
+    model = RandomForestRegressor()
+    model.fit(X_train, y_train)
+    feature_importances = pd.Series(model.feature_importances_, index=X_train.columns)
+    feature_importances.nlargest(10).plot(kind='barh')
+    plt.show()
+
+
+def comprehensive_eda(df):
+    correlation_matrix(df)
+    pairplot(df)
+    feature_importance(df)
+
+
+def analyse_data_frame(df):
+    """
+    Analyzes a DataFrame for various statistical properties including autocorrelation,
+    skewness, outliers, stationarity, seasonality, and trend.
+
+    Args:
+    - df (pd.DataFrame): DataFrame containing the data to be analyzed.
+    """
+
+    # Calculate and print skewness of PM2.5 values
+    skewness = analyze_skewness(df, 'PM2.5-Value')
+    print(f"Skewness of PM2.5-Value: {skewness}")
+    if skewness > 0:
+        print('There is more weight in the right tail of the distribution.')
+    elif skewness < 0:
+        print('There is more weight in the left tail of the distribution.')
+    else:
+        print('The distribution is symmetric.')
+
+        # Detect and print information about outliers in PM2.5 values
+    outliers = detect_and_show_outliers(df, 'PM2.5-Value')
+    print(f'Count of outliers: {len(outliers)}')
+    outlier_percentage = (len(outliers) / len(df)) * 100
+    print(f'Percentage of outliers: {outlier_percentage:.2f}%')
+
+    # Analyze autocorrelation for PM2.5 values
+    df_pm25 = df[['PM2.5-Value']]
+    autocorrelation_plot(df_pm25)
+
+    # Check for stationarity in PM2.5 values
+    # get_stationarity(df[['PM2.5-Value']], visualize=True)
+
+    # Check for seasonality and trend in PM2.5 values
+    # Assuming mb.get_cleaned_datetime_df() is a function to clean/prepare the DataFrame
+    df['Start'] = pd.to_datetime(df['Start'])
+    df = df.set_index('Start')
+
+    result_df = check_seasonality_and_trend(df, 'PM2.5-Value')
+    if 'Error' in result_df.columns:
+        print(f"Error in seasonality and trend analysis: {result_df['Error'][0]}")
+    else:
+        print("Seasonality and Trend Analysis Results:")
+        print(result_df)
+
+
+def process_and_save_freq_data(date_file_path, timestamp_file_path, resample='D', drop_columns='Start'):
+    """
+    Processes hourly data to resample, adds a timestamp column, and saves to two CSV files.
+
+    Args:
+    - date_file_path (str): Path to save the daily data CSV file with date.
+    - timestamp_file_path (str): Path to save the daily data CSV file with timestamp.
+    - drop_columns (list of str): Optional. List of column names to drop before saving the timestamp file.
+    """
+
+    # Get hourly cleaned data
+    df = mb.get_hourly_cleaned_datetime_df()
+
+    # Convert 'Start' column to datetime and set it as index
+    df['Start'] = pd.to_datetime(df['Start'])
+    df = df.set_index('Start')
+
+    # Resample data and take the median
+    df_resample = df.resample(resample).median()
+
+    # Add a 'Start_Timestamp' column with Unix timestamp in seconds
+    df_resample['Start_Timestamp'] = df_resample.index.view('int64') // 10 ** 9
+
+    # Save the processed data to a CSV file with date
+    df_resample.to_csv(date_file_path, index=True)
+
+    df_resample = pd.read_csv(date_file_path)
+
+    # Drop specified columns if provided
+    if drop_columns:
+        df_resample.drop(columns=drop_columns, inplace=True)
+
+    # Save the processed data to a CSV file with timestamp
+    df_resample.to_csv(timestamp_file_path, index=False)
+
+
+def process_and_save_hourly_data(df, date_file_path, timestamp_file_path):
+    """
+    Processes hourly data by dropping specific columns and reordering, then saves the data to CSV files.
+
+    Args:
+    - df (pd.DataFrame): DataFrame containing the hourly data.
+    - date_file_path (str): File path to save the hourly data with date.
+    - timestamp_file_path (str): File path to save the hourly data with timestamp.
+    """
+    if df.empty:
+        raise ValueError("DataFrame is empty")
+
+    if not isinstance(date_file_path, str) or not isinstance(timestamp_file_path, str):
+        raise TypeError("File paths must be strings")
+
+    # Drop unnecessary columns and prepare datetime
+    df = drop_df_columns(df, ['End', 'End_Timestamp'])
+    df = prepare_datetime_and_reorder(df, ['Start'])
+
+    # Save the DataFrame with the 'Start' column
+    df.to_csv(date_file_path, index=False)
+
+    # Drop the 'Start' column for the timestamp file
+    df.drop(columns='Start', inplace=True)
+
+    # Save the processed data to a CSV file with timestamp
+    df.to_csv(timestamp_file_path, index=False)
+
+
+def process_date_freq_data(df):
+    """
+    Processes data for different frequencies and saves to specified file paths.
+
+    Args:
+    - df (pd.DataFrame): DataFrame containing the data to be processed.
+    - file_paths (dict): Dictionary containing file paths for each frequency.
+    """
+
+    # Example usage
+    file_paths = {
+        'H': {'datetime': HOURLY_DATETIME_FILE_PATH, 'timestamp': HOURLY_TIMESTAMP_FILE_PATH},
+        'D': {'datetime': DAILY_DATETIME_FILE_PATH, 'timestamp': DAILY_TIMESTAMP_FILE_PATH},
+        'W': {'datetime': WEEKLY_DATETIME_FILE_PATH, 'timestamp': WEEKLY_TIMESTAMP_FILE_PATH},
+        'M': {'datetime': MONTHLY_DATETIME_FILE_PATH, 'timestamp': MONTHLY_TIMESTAMP_FILE_PATH}
+    }
+
+    if df is None or df.empty:
+        raise ValueError("DataFrame is empty or None")
+
+    date_freq = ['H', 'D', 'W', 'M']
+
+    for freq in date_freq:
+        datetime_path = file_paths[freq]['datetime']
+        timestamp_path = file_paths[freq]['timestamp']
+
+        if freq == 'H':
+            # Assuming process_and_save_hourly_data is defined to handle hourly data
+            process_and_save_hourly_data(df, datetime_path, timestamp_path)
+        else:
+            # Assuming process_and_save_freq_data is defined to handle D, W, M frequencies
+            process_and_save_freq_data(datetime_path, timestamp_path, resample=freq)
+
+
+def read_frequency_data(file_paths):
+    """
+    Reads frequency data from specified file paths.
+
+    Args:
+    - file_paths (dict): Dictionary containing file paths for hourly, daily, weekly, and monthly data.
+
+    Returns:
+    - Tuple of DataFrames: (df_hourly, df_daily, df_weekly, df_monthly)
+    """
+    try:
+        df_hourly = pd.read_csv(file_paths['hourly'])
+        df_daily = pd.read_csv(file_paths['daily'])
+        df_weekly = pd.read_csv(file_paths['weekly'])
+        df_monthly = pd.read_csv(file_paths['monthly'])
+    except FileNotFoundError as e:
+        raise FileNotFoundError(f"Error reading files: {e}")
+
+    return df_hourly, df_daily, df_weekly, df_monthly
+
+
+def read_date_freq():
+    file_paths_date = {
+        'hourly': HOURLY_DATETIME_FILE_PATH,
+        'daily': DAILY_DATETIME_FILE_PATH,
+        'weekly': WEEKLY_DATETIME_FILE_PATH,
+        'monthly': MONTHLY_DATETIME_FILE_PATH
+    }
+    return read_frequency_data(file_paths_date)
+
+
+def read_timestamp_freq():
+    file_paths_timestamp = {
+        'hourly': HOURLY_TIMESTAMP_FILE_PATH,
+        'daily': DAILY_TIMESTAMP_FILE_PATH,
+        'weekly': WEEKLY_TIMESTAMP_FILE_PATH,
+        'monthly': MONTHLY_TIMESTAMP_FILE_PATH
+    }
+    return read_frequency_data(file_paths_timestamp)

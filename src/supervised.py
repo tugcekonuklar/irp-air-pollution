@@ -1,26 +1,18 @@
+from datetime import datetime
+
+import numpy as np
+from scipy.stats import loguniform
+from sklearn.decomposition import PCA
+from sklearn.linear_model import Lasso
+from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import Ridge
 from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
-from scipy.stats import uniform
-from sklearn.linear_model import Lasso
-from scipy.stats import loguniform
-from sklearn.linear_model import LinearRegression
-from sklearn.svm import SVR
-import model_base as mb
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
-from sklearn.decomposition import PCA
-from datetime import datetime 
-import numpy as np
+from sklearn.svm import SVR
 
-#
-# def split_data(x, y, train_size, val_size):
-#     train_end = int(len(x) * train_size)
-#     val_end = train_end + int(len(x) * val_size)
-#     x_train, y_train = x.iloc[:train_end], y.iloc[:train_end]
-#     x_val, y_val = x.iloc[train_end:val_end], y.iloc[train_end:val_end]
-#     x_test, y_test = x.iloc[val_end:], y.iloc[val_end:]
-#     return x_train, x_val, x_test, y_train, y_val, y_test
-#
+import model_base as mb
+
 
 def init_linear_model():
     return LinearRegression()
@@ -28,7 +20,7 @@ def init_linear_model():
 
 def init_ridge_model_with_random():
     model = Ridge()
-    param_distributions = {} #{'alpha': uniform(1e-4, 1e4)}
+    param_distributions = {}  # {'alpha': uniform(1e-4, 1e4)}
 
     tscv = TimeSeriesSplit(n_splits=5)
 
@@ -58,7 +50,6 @@ def init_lasso_model_with_random():
     )
 
 
-
 def train_and_evolve(df, model=init_linear_model()):
     train_data, validation_data, test_data = mb.split_data(df)
 
@@ -66,7 +57,7 @@ def train_and_evolve(df, model=init_linear_model()):
     X_train_scaled, X_val_scaled, X_test_scaled = mb.scale_features(train_data, validation_data, test_data)
     # Apply PCA on the scaled data
     pca = mb.init_pca()
-    pca.fit(X_train_scaled) 
+    pca.fit(X_train_scaled)
     # Transform the datasets using the fitted PCA
     X_train_pca = pca.transform(X_train_scaled)
     X_val_pca = pca.transform(X_val_scaled)
@@ -74,39 +65,85 @@ def train_and_evolve(df, model=init_linear_model()):
 
     # Extract the target variable
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-    
+
     model.fit(X_train_pca, y_train)
     # Make predictions on the validation set
     y_val_pred = model.predict(X_val_pca)
 
-    print(y_val_pred)
+    #     print(y_val_pred)
 
     # Error Metric
-    mb.evolve_error_metrics(y_val,y_val_pred)
-    mb.naive_mean_absolute_scaled_error(y_val,y_val_pred)
+    mb.evolve_error_metrics(y_val, y_val_pred)
+    mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
 
     # Predict on the test set
     y_test_pred = model.predict(X_test_pca)
 
     # Error Metric
-    mb.evolve_error_metrics(y_test,y_test_pred)
-    mb.naive_mean_absolute_scaled_error(y_test,y_test_pred)
-
+    mb.evolve_error_metrics(y_test, y_test_pred)
+    mb.naive_mean_absolute_scaled_error(y_test, y_test_pred)
 
     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
-    
+
+
 def lasso_train_and_evolve(df, model=init_lasso_model_with_random()):
     train_and_evolve(df, model)
+
 
 def ringe_train_and_evolve(df, model=init_ridge_model_with_random()):
     train_and_evolve(df, model)
 
-def init_svr_pipeline():
+
+def get_svr_best_params(frequency):
+    """
+    Returns the best parameters for Hist Gradient Boosting Regressor based on the specified frequency.
+
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
+    """
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'C': 10.0,
+            'epsilon': 1.0,
+            'kernel': 'rbf',
+            'gamma': 0.01
+        },
+        'D': {
+            'C': 1.0,
+            'epsilon': 0.01,
+            'kernel': 'linear',
+            'gamma': 1.0
+        },
+        'W': {
+            'C': 10.0,
+            'epsilon': 0.01,
+            'kernel': 'linear',
+            'gamma': 0.001
+        },
+        'M': {
+            'C': 10.0,
+            'epsilon': 0.01,
+            'kernel': 'linear',
+            'gamma': 0.001
+        }
+    }
+
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
+
+
+def init_svr_pipeline(frequency):
+    best_params = get_svr_best_params(frequency)
     return Pipeline([
         ('scaler', StandardScaler()),
         ('pca', PCA(n_components=0.95)),  # Retain 95% of the variance
-        ('svr', SVR(C=10.0, epsilon=0.2, kernel='rbf',gamma=0.01))
+        ('svr', SVR(C=best_params['C'], epsilon=best_params['epsilon'], kernel=best_params['kernel'],
+                    gamma=best_params['gamma']))
     ])
 
 
@@ -173,58 +210,34 @@ def tune_and_evaluate_svr(df):
     return random_search.best_estimator_
 
 
-def svr_train_and_evolve(df):
-    ## Splitting Data 
+def svr_train_and_evolve(df, frequency='H'):
+    ## Splitting Data
     train_data, validation_data, test_data = mb.split_data(df)
     # Extract the features
     X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
     # Extract the target variable
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-    
+
     # Initialize and train the SVR model
-    pipeline = init_svr_pipeline()
+    pipeline = init_svr_pipeline(frequency)
     pipeline.fit(X_train, y_train)
 
     # # Make predictions on the validation set
     y_val_pred = pipeline.predict(X_val)
 
-    print(y_val_pred)
+    #     print(y_val_pred)
 
     # # Error Metric
-    mb.evolve_error_metrics(y_val,y_val_pred)
-    mb.naive_mean_absolute_scaled_error(y_val,y_val_pred)
+    mb.evolve_error_metrics(y_val, y_val_pred)
+    mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
 
     # # Predict on the test set
     y_test_pred = pipeline.predict(X_test)
 
     # # Error Metric
-    mb.evolve_error_metrics(y_test,y_test_pred)
-    mb.naive_mean_absolute_scaled_error(y_test,y_test_pred)
+    mb.evolve_error_metrics(y_test, y_test_pred)
+    mb.naive_mean_absolute_scaled_error(y_test, y_test_pred)
 
     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
-    
-    
-    
-#{'svr__kernel': 'rbf', 'svr__gamma': 0.01, 'svr__epsilon': 1.0, 'svr__C': 10.0, 'pca__n_components': 0.95}
 
-# Training set size: 52588
-# Validation set size: 17529
-# Test set size: 17531
-# Started 2023-11-28 02:31:14
-# Fitted 2023-11-28 02:31:14
-# Fitting 5 folds for each of 10 candidates, totalling 50 fits
-# Best parameters: {'svr__kernel': 'rbf', 'svr__gamma': 0.01, 'svr__epsilon': 1.0, 'svr__C': 10.0, 'pca__n_components': 0.95}
-# Best score: 13.651469207046095
-# Prediction started  2023-11-28 03:32:07
-# MAE: 1.7569
-# MSE: 9.3864
-# RMSE: 3.0637
-# MAPE: 0.2376
-# MASE: 1.6950847864461795
-# MAE: 1.7923
-# MSE: 7.6795
-# RMSE: 2.7712
-# MAPE: 0.2271
-# MASE: 1.659328815750067
-# Finished 2023-11-28 03:32:48

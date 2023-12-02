@@ -621,7 +621,7 @@ def train_and_evolve_bagging(df, frequency='H'):
     # VALIDATION Prediction and Evolution
     y_val_pred = model.predict(X_val)
 
-#     print(y_val_pred)
+    #     print(y_val_pred)
 
     # Validation Error Metric
     mb.evolve_error_metrics(y_val, y_val_pred)
@@ -630,7 +630,7 @@ def train_and_evolve_bagging(df, frequency='H'):
     # TEST Prediction and Evolution
     y_test_pred = model.predict(X_test)
 
-#     print(y_test_pred)
+    #     print(y_test_pred)
 
     # Test Error Metric
     mb.evolve_error_metrics(y_test, y_test_pred)

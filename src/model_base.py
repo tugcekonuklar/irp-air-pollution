@@ -12,19 +12,17 @@ warnings.filterwarnings('ignore')
 FEATURES = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']
 TARGET = 'PM2.5-Value'
 
+HOURLY_DATETIME_FILE_PATH = '../data/HOURLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
+HOURLY_TIMESTAMP_FILE_PATH = '../data/HOURLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
 
-HOURLY_DATETIME_FILE_PATH='../data/HOURLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
-HOURLY_TIMESTAMP_FILE_PATH='../data/HOURLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
+DAILY_DATETIME_FILE_PATH = '../data/DAILY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
+DAILY_TIMESTAMP_FILE_PATH = '../data/DAILY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
 
-DAILY_DATETIME_FILE_PATH='../data/DAILY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
-DAILY_TIMESTAMP_FILE_PATH='../data/DAILY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
+WEEKLY_DATETIME_FILE_PATH = '../data/WEEKLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
+WEEKLY_TIMESTAMP_FILE_PATH = '../data/WEEKLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
 
-WEEKLY_DATETIME_FILE_PATH='../data/WEEKLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
-WEEKLY_TIMESTAMP_FILE_PATH='../data/WEEKLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
-
-MONTHLY_DATETIME_FILE_PATH='../data/MONTLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
-MONTHLY_TIMESTAMP_FILE_PATH='../data/MONTLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
-
+MONTHLY_DATETIME_FILE_PATH = '../data/MONTLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
+MONTHLY_TIMESTAMP_FILE_PATH = '../data/MONTLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
 
 
 def move_columns_to_front(df, cols_to_move):
@@ -98,7 +96,7 @@ def read_all_air_pollutant_csv():
     Returns:
     - dict: Dictionary of DataFrames.
     """
-    
+
     file_paths = {
         'pm25': '../data/PM2.5_DE_DEBB021.csv',
         'pm10': '../data/PM10_DE_DEBB021.csv',
@@ -115,7 +113,6 @@ def read_all_air_pollutant_csv():
             continue
 
     return dataframes['pm25'], dataframes['pm10'], dataframes['no2'], dataframes['o3'], dataframes['so2']
-
 
 
 def read_frequency_data(file_paths):
@@ -138,7 +135,7 @@ def read_frequency_data(file_paths):
 
     return df_hourly, df_daily, df_weekly, df_monthly
 
-            
+
 def read_date_freq():
     file_paths_date = {
         'hourly': HOURLY_DATETIME_FILE_PATH,
@@ -146,7 +143,8 @@ def read_date_freq():
         'weekly': WEEKLY_DATETIME_FILE_PATH,
         'monthly': MONTHLY_DATETIME_FILE_PATH
     }
-    return read_frequency_data(file_paths_date) 
+    return read_frequency_data(file_paths_date)
+
 
 def read_timestamp_freq():
     file_paths_timestamp = {
@@ -155,12 +153,14 @@ def read_timestamp_freq():
         'weekly': WEEKLY_TIMESTAMP_FILE_PATH,
         'monthly': MONTHLY_TIMESTAMP_FILE_PATH
     }
-    return read_frequency_data(file_paths_timestamp) 
+    return read_frequency_data(file_paths_timestamp)
+
 
 def read_hourly_datetime_df():
     return pd.read_csv(HOURLY_DATETIME_FILE_PATH)
-        
-def process_and_save_freq_data(date_file_path, timestamp_file_path,resample='D', drop_columns='Start'):
+
+
+def process_and_save_freq_data(date_file_path, timestamp_file_path, resample='D', drop_columns='Start'):
     """
     Processes hourly data to resample, adds a timestamp column, and saves to two CSV files.
 
@@ -181,11 +181,11 @@ def process_and_save_freq_data(date_file_path, timestamp_file_path,resample='D',
     df_resample = df.resample(resample).median()
 
     # Add a 'Start_Timestamp' column with Unix timestamp in seconds
-    df_resample['Start_Timestamp'] = df_resample.index.view('int64') // 10**9
+    df_resample['Start_Timestamp'] = df_resample.index.view('int64') // 10 ** 9
 
     # Save the processed data to a CSV file with date
     df_resample.to_csv(date_file_path, index=True)
-    
+
     df_resample = pd.read_csv(date_file_path)
 
     # Drop specified columns if provided
@@ -194,8 +194,8 @@ def process_and_save_freq_data(date_file_path, timestamp_file_path,resample='D',
 
     # Save the processed data to a CSV file with timestamp
     df_resample.to_csv(timestamp_file_path, index=False)
-    
-    
+
+
 def process_and_save_hourly_data(df, date_file_path, timestamp_file_path):
     """
     Processes hourly data by dropping specific columns and reordering, then saves the data to CSV files.
@@ -223,7 +223,6 @@ def process_and_save_hourly_data(df, date_file_path, timestamp_file_path):
 
     # Save the processed data to a CSV file with timestamp
     df.to_csv(timestamp_file_path, index=False)
-            
 
 
 def process_date_freq_data(df):
@@ -234,20 +233,20 @@ def process_date_freq_data(df):
     - df (pd.DataFrame): DataFrame containing the data to be processed.
     - file_paths (dict): Dictionary containing file paths for each frequency.
     """
-    
-        # Example usage
+
+    # Example usage
     file_paths = {
         'H': {'datetime': HOURLY_DATETIME_FILE_PATH, 'timestamp': HOURLY_TIMESTAMP_FILE_PATH},
         'D': {'datetime': DAILY_DATETIME_FILE_PATH, 'timestamp': DAILY_TIMESTAMP_FILE_PATH},
         'W': {'datetime': WEEKLY_DATETIME_FILE_PATH, 'timestamp': WEEKLY_TIMESTAMP_FILE_PATH},
         'M': {'datetime': MONTHLY_DATETIME_FILE_PATH, 'timestamp': MONTHLY_TIMESTAMP_FILE_PATH}
     }
-    
+
     if df is None or df.empty:
         raise ValueError("DataFrame is empty or None")
 
     date_freq = ['H', 'D', 'W', 'M']
-    
+
     for freq in date_freq:
         datetime_path = file_paths[freq]['datetime']
         timestamp_path = file_paths[freq]['timestamp']
@@ -259,7 +258,7 @@ def process_date_freq_data(df):
             # Assuming process_and_save_freq_data is defined to handle D, W, M frequencies
             process_and_save_freq_data(datetime_path, timestamp_path, resample=freq)
 
-            
+
 def set_start_index(df, index_col):
     return df.set_index(index_col, inplace=True)
 
@@ -317,6 +316,7 @@ def scale_features(train_data, validation_data, test_data, scaler=StandardScaler
     x_val_scaled = scaler.transform(validation_data[FEATURES])
     x_test_scaled = scaler.transform(test_data[FEATURES])
     return x_train_scaled, x_val_scaled, x_test_scaled
+
 
 def scale_target(train_data, validation_data, test_data, scaler):
     # Scale the features

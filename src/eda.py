@@ -1,17 +1,17 @@
-import pandas as pd
 import matplotlib.pyplot as plt
-from statsmodels.tsa.stattools import adfuller
-from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
-from statsmodels.tsa.seasonal import seasonal_decompose
-from sklearn.impute import KNNImputer
 import numpy as np
-import statsmodels.api as sm
+import pandas as pd
 import seaborn as sns
+import statsmodels.api as sm
 from pandas.plotting import autocorrelation_plot
 from scipy.stats import skew
-import model_base as mb
-import seaborn as sns
 from sklearn.ensemble import RandomForestRegressor
+from sklearn.impute import KNNImputer
+from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
+from statsmodels.tsa.seasonal import seasonal_decompose
+from statsmodels.tsa.stattools import adfuller
+
+import model_base as mb
 
 
 def merge_dataframes_on_columns(dfs, columns=['Start', 'End'], how='outer'):
@@ -35,7 +35,7 @@ def merge_dataframes_on_columns(dfs, columns=['Start', 'End'], how='outer'):
     # Iteratively merge the other dataframes
     for df in dfs[1:]:
         df_merged = df_merged.merge(df, on=columns, how=how)
-    
+
     df_merged = df_merged.sort_values(by='Start')
     return df_merged
 
@@ -250,6 +250,7 @@ def from_datetime_to_timestamp(df, col):
     df[timestamp_col] = df[col].astype('int64') // 10 ** 9
     return df
 
+
 def check_seasonality_and_trend(df, column_name='PM2.5-Value', freq='H'):
     # Check if DataFrame has a DateTimeIndex with frequency set
     if not isinstance(df.index, pd.DatetimeIndex):
@@ -308,7 +309,6 @@ def check_seasonality_and_trend(df, column_name='PM2.5-Value', freq='H'):
     })
 
 
-
 def analyze_skewness(df, column_name):
     """
     Calculate and visualize the skewness of a time series dataset.
@@ -345,8 +345,6 @@ def analyze_skewness(df, column_name):
     plt.show()
 
     return data_skewness
-
-
 
 
 def detect_and_show_outliers(df, column_name):
@@ -410,7 +408,7 @@ def correlation_matrix(df, figsize=(20, 8), cmap='coolwarm', title="Correlation 
     sns.heatmap(correlation_matrix, annot=True, cmap=cmap)
     plt.title(title)
     plt.show()
-    
+
 
 def pairplot(df, title="Pairplot"):
     """
@@ -425,16 +423,16 @@ def pairplot(df, title="Pairplot"):
 
     pair_plot = sns.pairplot(df)
     pair_plot.fig.suptitle(title, y=1.02)  # Adjust the title position
-    plt.show()        
-    
-    
+    plt.show()
+
+
 def feature_importance(df):
     # Train a simple Random Forest model and check the feature importances. 
     # Define your features and target variable
     train_data, validation_data, test_data = mb.split_data(df)
-        # Extract the features
+    # Extract the features
     X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
-        # Extract the target variable
+    # Extract the target variable
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
 
     # Assuming X is your feature set and y is the target variable
@@ -443,15 +441,14 @@ def feature_importance(df):
     feature_importances = pd.Series(model.feature_importances_, index=X_train.columns)
     feature_importances.nlargest(10).plot(kind='barh')
     plt.show()
-    
-    
-    
+
+
 def comprehensive_eda(df):
     correlation_matrix(df)
     pairplot(df)
     feature_importance(df)
-    
-    
+
+
 def analyse_data_frame(df):
     """
     Analyzes a DataFrame for various statistical properties including autocorrelation,
@@ -467,23 +464,23 @@ def analyse_data_frame(df):
     if skewness > 0:
         print('There is more weight in the right tail of the distribution.')
     elif skewness < 0:
-        print('There is more weight in the left tail of the distribution.') 
+        print('There is more weight in the left tail of the distribution.')
     else:
-        print('The distribution is symmetric.') 
-        
-    # Detect and print information about outliers in PM2.5 values
+        print('The distribution is symmetric.')
+
+        # Detect and print information about outliers in PM2.5 values
     outliers = detect_and_show_outliers(df, 'PM2.5-Value')
     print(f'Count of outliers: {len(outliers)}')
     outlier_percentage = (len(outliers) / len(df)) * 100
     print(f'Percentage of outliers: {outlier_percentage:.2f}%')
-    
+
     # Analyze autocorrelation for PM2.5 values
     df_pm25 = df[['PM2.5-Value']]
     autocorrelation_plot(df_pm25)
-    
+
     # Check for stationarity in PM2.5 values
     # get_stationarity(df[['PM2.5-Value']], visualize=True)
-    
+
     # Check for seasonality and trend in PM2.5 values
     # Assuming mb.get_cleaned_datetime_df() is a function to clean/prepare the DataFrame
     df['Start'] = pd.to_datetime(df['Start'])

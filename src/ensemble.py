@@ -51,17 +51,17 @@ def get_gbr_best_params(frequency):
         },
         'W': {
             'learning_rate': 0.1,
-            'max_depth': 3,
-            'min_samples_leaf': 3,
+            'max_depth': 5,
+            'min_samples_leaf': 6,
             'min_samples_split': 6,
-            'n_estimators': 406
+            'n_estimators': 357
         },
         'M': {
             'learning_rate': 0.1,
-            'max_depth': 3,
-            'min_samples_leaf': 3,
-            'min_samples_split': 6,
-            'n_estimators': 406
+            'max_depth': 8,
+            'min_samples_leaf': 2,
+            'min_samples_split': 10,
+            'n_estimators': 445
         }
     }
 
@@ -132,28 +132,28 @@ def get_xgb_best_params(frequency):
             'min_child_weight': 5
         },
         'D': {
-            'n_estimators': 205,
-            'max_depth': 8,
-            'learning_rate': 0.10351332282682328,
-            'subsample': 0.7838501639099957,
-            'colsample_bytree': 0.831261142176991,
-            'min_child_weight': 6
+            'n_estimators': 714,
+            'max_depth': 7,
+            'learning_rate': 0.06503043695984914,
+            'subsample': 0.7229163764267956,
+            'colsample_bytree': 0.8982714934301164,
+            'min_child_weight': 5
         },
         'W': {
-            'n_estimators': 205,
-            'max_depth': 8,
-            'learning_rate': 0.10351332282682328,
-            'subsample': 0.7838501639099957,
-            'colsample_bytree': 0.831261142176991,
-            'min_child_weight': 6
+            'n_estimators': 714,
+            'max_depth': 7,
+            'learning_rate': 0.06503043695984914,
+            'subsample': 0.7229163764267956,
+            'colsample_bytree': 0.8982714934301164,
+            'min_child_weight': 5
         },
         'M': {
             'n_estimators': 205,
-            'max_depth': 8,
-            'learning_rate': 0.10351332282682328,
-            'subsample': 0.7838501639099957,
-            'colsample_bytree': 0.831261142176991,
-            'min_child_weight': 6
+            'max_depth': 7,
+            'learning_rate': 0.06503043695984914,
+            'subsample': 0.7229163764267956,
+            'colsample_bytree': 0.8982714934301164,
+            'min_child_weight': 5
         }
     }
 
@@ -180,18 +180,18 @@ def get_ada_best_params(frequency):
         },
         'D': {
             'max_depth': 8,
-            'learning_rate': 0.16297508346206444,
-            'n_estimators': 70,
+            'learning_rate': 0.010974987654930561,
+            'n_estimators': 199,
         },
         'W': {
-            'max_depth': 8,
-            'learning_rate': 0.16297508346206444,
-            'n_estimators': 70,
+            'max_depth': 5,
+            'learning_rate': 0.044306214575838825,
+            'n_estimators': 363,
         },
         'M': {
             'max_depth': 8,
-            'learning_rate': 0.16297508346206444,
-            'n_estimators': 70,
+            'learning_rate': 0.010974987654930561,
+            'n_estimators': 199,
         }
     }
 
@@ -213,27 +213,27 @@ def get_cat_best_params(frequency):
     best_params = {
         'H': {
             'l2_leaf_reg': 3,
-            'learning_rate': 0.1,
+            'learning_rate': 0.09999999999999999,
             'iterations': 200,
             'depth': 4
         },
         'D': {
             'l2_leaf_reg': 3,
-            'learning_rate': 0.1,
+            'learning_rate': 0.09999999999999999,
             'iterations': 200,
             'depth': 4
         },
         'W': {
             'l2_leaf_reg': 3,
-            'learning_rate': 0.1,
+            'learning_rate': 0.09999999999999999,
             'iterations': 200,
             'depth': 4
         },
         'M': {
-            'l2_leaf_reg': 3,
-            'learning_rate': 0.1,
-            'iterations': 200,
-            'depth': 4
+            'l2_leaf_reg': 9,
+            'learning_rate': 0.09999999999999999,
+            'iterations': 500,
+            'depth': 6
         }
     }
 
@@ -254,32 +254,32 @@ def get_random_forest_best_params(frequency):
     # Define best parameters for each frequency
     best_params = {
         'H': {
-            'max_depth': 21,
-            'n_estimators': 266,
+            'max_depth': 28,
+            'n_estimators': 472,
             'max_features': 'log2',
-            'min_samples_leaf': 5,
-            'min_samples_split': 10,
+            'min_samples_leaf': 7,
+            'min_samples_split': 9,
         },
         'D': {
-            'max_depth': 21,
-            'n_estimators': 266,
-            'max_features': 'log2',
-            'min_samples_leaf': 5,
-            'min_samples_split': 10,
+            'max_depth': 28,
+            'n_estimators': 192,
+            'max_features': 'auto',
+            'min_samples_leaf': 2,
+            'min_samples_split': 5,
         },
         'W': {
-            'max_depth': 21,
-            'n_estimators': 266,
-            'max_features': 'log2',
-            'min_samples_leaf': 5,
-            'min_samples_split': 10,
+            'max_depth': 14,
+            'n_estimators': 975,
+            'max_features': 'auto',
+            'min_samples_leaf': 1,
+            'min_samples_split': 4,
         },
         'M': {
-            'max_depth': 21,
-            'n_estimators': 266,
-            'max_features': 'log2',
-            'min_samples_leaf': 5,
-            'min_samples_split': 10,
+            'max_depth': 14,
+            'n_estimators': 975,
+            'max_features': 'auto',
+            'min_samples_leaf': 1,
+            'min_samples_split': 4,
         }
     }
 
@@ -621,7 +621,7 @@ def train_and_evolve_bagging(df, frequency='H'):
     # VALIDATION Prediction and Evolution
     y_val_pred = model.predict(X_val)
 
-    #     print(y_val_pred)
+#     print(y_val_pred)
 
     # Validation Error Metric
     mb.evolve_error_metrics(y_val, y_val_pred)
@@ -630,7 +630,7 @@ def train_and_evolve_bagging(df, frequency='H'):
     # TEST Prediction and Evolution
     y_test_pred = model.predict(X_test)
 
-    #     print(y_test_pred)
+#     print(y_test_pred)
 
     # Test Error Metric
     mb.evolve_error_metrics(y_test, y_test_pred)

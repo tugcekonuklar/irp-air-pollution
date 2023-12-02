@@ -1,29 +1,17 @@
-import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
-import seaborn as sns
-import statsmodels.api as sm
-from pandas.plotting import autocorrelation_plot
-from scipy.stats import skew
-from sklearn.ensemble import RandomForestRegressor
-from sklearn.impute import KNNImputer
+import matplotlib.pyplot as plt
+from statsmodels.tsa.stattools import adfuller
 from statsmodels.graphics.tsaplots import plot_acf, plot_pacf
 from statsmodels.tsa.seasonal import seasonal_decompose
-from statsmodels.tsa.stattools import adfuller
-
+from sklearn.impute import KNNImputer
+import numpy as np
+import statsmodels.api as sm
+import seaborn as sns
+from pandas.plotting import autocorrelation_plot
+from scipy.stats import skew
 import model_base as mb
-
-HOURLY_DATETIME_FILE_PATH = '../data/HOURLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
-HOURLY_TIMESTAMP_FILE_PATH = '../data/HOURLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
-
-DAILY_DATETIME_FILE_PATH = '../data/DAILY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
-DAILY_TIMESTAMP_FILE_PATH = '../data/DAILY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
-
-WEEKLY_DATETIME_FILE_PATH = '../data/WEEKLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
-WEEKLY_TIMESTAMP_FILE_PATH = '../data/WEEKLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
-
-MONTHLY_DATETIME_FILE_PATH = '../data/MONTLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
-MONTHLY_TIMESTAMP_FILE_PATH = '../data/MONTLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
+import seaborn as sns
+from sklearn.ensemble import RandomForestRegressor
 
 
 def merge_dataframes_on_columns(dfs, columns=['Start', 'End'], how='outer'):
@@ -47,7 +35,7 @@ def merge_dataframes_on_columns(dfs, columns=['Start', 'End'], how='outer'):
     # Iteratively merge the other dataframes
     for df in dfs[1:]:
         df_merged = df_merged.merge(df, on=columns, how=how)
-
+    
     df_merged = df_merged.sort_values(by='Start')
     return df_merged
 
@@ -82,23 +70,6 @@ def rename_df_columns(data_frame: pd.DataFrame, prefix: str) -> pd.DataFrame:
     return renamed_df
 
 
-def drop_df_columns(data_frame: pd.DataFrame, columns_to_drop: list = None) -> pd.DataFrame:
-    """
-    Drops specified columns from a dataframe and returns a new dataframe.
-
-    Args:
-    - data_frame (pd.DataFrame): The original dataframe.
-    - columns_to_drop (list): List of columns to drop. Defaults to the specified list.
-
-    Returns:
-    - pd.DataFrame: New dataframe with specified columns dropped.
-    """
-    # Drop columns that exist in the dataframe
-    cols_to_drop = [col for col in columns_to_drop if col in data_frame.columns]
-
-    return data_frame.drop(cols_to_drop, axis=1)
-
-
 def drop_unused_df_columns(data_frame: pd.DataFrame, columns_to_drop: list = None) -> pd.DataFrame:
     """
     Drops specified columns from a dataframe and returns a new dataframe.
@@ -114,7 +85,7 @@ def drop_unused_df_columns(data_frame: pd.DataFrame, columns_to_drop: list = Non
     if columns_to_drop is None:
         columns_to_drop = ['Samplingpoint', 'AggType', 'ResultTime', 'DataCapture', 'FkObservationLog']
 
-    return drop_df_columns(data_frame, columns_to_drop)
+    return mb.drop_df_columns(data_frame, columns_to_drop)
 
 
 def get_clean_merged_data() -> pd.DataFrame:
@@ -273,56 +244,11 @@ def plot_timeseries(df, column, xlabel="Date", ylabel=None, title=None, figsize=
     plt.show()
 
 
-def move_columns_to_front(df, cols_to_move):
-    """
-    Move specified columns to the front of the DataFrame.
-
-    Parameters:
-    df (pd.DataFrame): The DataFrame to reorder.
-    cols_to_move (list of str): The column names to move to the front.
-
-    Returns:
-    pd.DataFrame: The DataFrame with columns reordered.
-    """
-    # Filter out the columns to move from the original column list
-    other_cols = [col for col in df.columns if col not in cols_to_move]
-    # Create the new column order
-    new_order = cols_to_move + other_cols
-    # Reindex the DataFrame with the new column order
-    return df[new_order]
-
-
-def prepare_datetime_and_reorder(df, date_cols):
-    """
-    Convert specified string date columns to datetime, then to Unix timestamp,
-    and finally move the timestamp columns to the beginning of the DataFrame.
-
-    Parameters:
-    df (pd.DataFrame): The DataFrame to process.
-    date_cols (list of str): The names of the date columns to convert.
-
-    Returns:
-    pd.DataFrame: The processed DataFrame with datetime conversions and reordered columns.
-    """
-    timestamp_cols = []
-
-    # Convert date columns to datetime and then to Unix timestamp
-    for col in date_cols:
-        df[col] = pd.to_datetime(df[col])
-        timestamp_col = col + '_Timestamp'
-        df[timestamp_col] = df[col].astype('int64') // 10 ** 9
-        timestamp_cols.append(timestamp_col)
-
-    # Use the separate method to move the timestamp columns to the beginning
-    return move_columns_to_front(df, timestamp_cols)
-
-
 def from_datetime_to_timestamp(df, col):
     df[col] = pd.to_datetime(df[col])
     timestamp_col = col + '_Timestamp'
     df[timestamp_col] = df[col].astype('int64') // 10 ** 9
     return df
-
 
 def check_seasonality_and_trend(df, column_name='PM2.5-Value', freq='H'):
     # Check if DataFrame has a DateTimeIndex with frequency set
@@ -382,6 +308,7 @@ def check_seasonality_and_trend(df, column_name='PM2.5-Value', freq='H'):
     })
 
 
+
 def analyze_skewness(df, column_name):
     """
     Calculate and visualize the skewness of a time series dataset.
@@ -418,6 +345,8 @@ def analyze_skewness(df, column_name):
     plt.show()
 
     return data_skewness
+
+
 
 
 def detect_and_show_outliers(df, column_name):
@@ -457,8 +386,8 @@ def detect_and_show_outliers(df, column_name):
     IQR = Q3 - Q1
     outliers = df[(df[column_name] < (Q1 - 1.5 * IQR)) | (df[column_name] > (Q3 + 1.5 * IQR))]
 
-    print("Outliers using IQR method:")
-    print(outliers)
+    # print("Outliers using IQR method:")
+    # print(outliers)
 
     return outliers
 
@@ -481,7 +410,7 @@ def correlation_matrix(df, figsize=(20, 8), cmap='coolwarm', title="Correlation 
     sns.heatmap(correlation_matrix, annot=True, cmap=cmap)
     plt.title(title)
     plt.show()
-
+    
 
 def pairplot(df, title="Pairplot"):
     """
@@ -496,16 +425,16 @@ def pairplot(df, title="Pairplot"):
 
     pair_plot = sns.pairplot(df)
     pair_plot.fig.suptitle(title, y=1.02)  # Adjust the title position
-    plt.show()
-
-
+    plt.show()        
+    
+    
 def feature_importance(df):
     # Train a simple Random Forest model and check the feature importances. 
     # Define your features and target variable
     train_data, validation_data, test_data = mb.split_data(df)
-    # Extract the features
+        # Extract the features
     X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
-    # Extract the target variable
+        # Extract the target variable
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
 
     # Assuming X is your feature set and y is the target variable
@@ -514,14 +443,15 @@ def feature_importance(df):
     feature_importances = pd.Series(model.feature_importances_, index=X_train.columns)
     feature_importances.nlargest(10).plot(kind='barh')
     plt.show()
-
-
+    
+    
+    
 def comprehensive_eda(df):
     correlation_matrix(df)
     pairplot(df)
     feature_importance(df)
-
-
+    
+    
 def analyse_data_frame(df):
     """
     Analyzes a DataFrame for various statistical properties including autocorrelation,
@@ -537,23 +467,23 @@ def analyse_data_frame(df):
     if skewness > 0:
         print('There is more weight in the right tail of the distribution.')
     elif skewness < 0:
-        print('There is more weight in the left tail of the distribution.')
+        print('There is more weight in the left tail of the distribution.') 
     else:
-        print('The distribution is symmetric.')
-
-        # Detect and print information about outliers in PM2.5 values
+        print('The distribution is symmetric.') 
+        
+    # Detect and print information about outliers in PM2.5 values
     outliers = detect_and_show_outliers(df, 'PM2.5-Value')
     print(f'Count of outliers: {len(outliers)}')
     outlier_percentage = (len(outliers) / len(df)) * 100
     print(f'Percentage of outliers: {outlier_percentage:.2f}%')
-
+    
     # Analyze autocorrelation for PM2.5 values
     df_pm25 = df[['PM2.5-Value']]
     autocorrelation_plot(df_pm25)
-
+    
     # Check for stationarity in PM2.5 values
     # get_stationarity(df[['PM2.5-Value']], visualize=True)
-
+    
     # Check for seasonality and trend in PM2.5 values
     # Assuming mb.get_cleaned_datetime_df() is a function to clean/prepare the DataFrame
     df['Start'] = pd.to_datetime(df['Start'])
@@ -565,143 +495,3 @@ def analyse_data_frame(df):
     else:
         print("Seasonality and Trend Analysis Results:")
         print(result_df)
-
-
-def process_and_save_freq_data(date_file_path, timestamp_file_path, resample='D', drop_columns='Start'):
-    """
-    Processes hourly data to resample, adds a timestamp column, and saves to two CSV files.
-
-    Args:
-    - date_file_path (str): Path to save the daily data CSV file with date.
-    - timestamp_file_path (str): Path to save the daily data CSV file with timestamp.
-    - drop_columns (list of str): Optional. List of column names to drop before saving the timestamp file.
-    """
-
-    # Get hourly cleaned data
-    df = mb.get_hourly_cleaned_datetime_df()
-
-    # Convert 'Start' column to datetime and set it as index
-    df['Start'] = pd.to_datetime(df['Start'])
-    df = df.set_index('Start')
-
-    # Resample data and take the median
-    df_resample = df.resample(resample).median()
-
-    # Add a 'Start_Timestamp' column with Unix timestamp in seconds
-    df_resample['Start_Timestamp'] = df_resample.index.view('int64') // 10 ** 9
-
-    # Save the processed data to a CSV file with date
-    df_resample.to_csv(date_file_path, index=True)
-
-    df_resample = pd.read_csv(date_file_path)
-
-    # Drop specified columns if provided
-    if drop_columns:
-        df_resample.drop(columns=drop_columns, inplace=True)
-
-    # Save the processed data to a CSV file with timestamp
-    df_resample.to_csv(timestamp_file_path, index=False)
-
-
-def process_and_save_hourly_data(df, date_file_path, timestamp_file_path):
-    """
-    Processes hourly data by dropping specific columns and reordering, then saves the data to CSV files.
-
-    Args:
-    - df (pd.DataFrame): DataFrame containing the hourly data.
-    - date_file_path (str): File path to save the hourly data with date.
-    - timestamp_file_path (str): File path to save the hourly data with timestamp.
-    """
-    if df.empty:
-        raise ValueError("DataFrame is empty")
-
-    if not isinstance(date_file_path, str) or not isinstance(timestamp_file_path, str):
-        raise TypeError("File paths must be strings")
-
-    # Drop unnecessary columns and prepare datetime
-    df = drop_df_columns(df, ['End', 'End_Timestamp'])
-    df = prepare_datetime_and_reorder(df, ['Start'])
-
-    # Save the DataFrame with the 'Start' column
-    df.to_csv(date_file_path, index=False)
-
-    # Drop the 'Start' column for the timestamp file
-    df.drop(columns='Start', inplace=True)
-
-    # Save the processed data to a CSV file with timestamp
-    df.to_csv(timestamp_file_path, index=False)
-
-
-def process_date_freq_data(df):
-    """
-    Processes data for different frequencies and saves to specified file paths.
-
-    Args:
-    - df (pd.DataFrame): DataFrame containing the data to be processed.
-    - file_paths (dict): Dictionary containing file paths for each frequency.
-    """
-
-    # Example usage
-    file_paths = {
-        'H': {'datetime': HOURLY_DATETIME_FILE_PATH, 'timestamp': HOURLY_TIMESTAMP_FILE_PATH},
-        'D': {'datetime': DAILY_DATETIME_FILE_PATH, 'timestamp': DAILY_TIMESTAMP_FILE_PATH},
-        'W': {'datetime': WEEKLY_DATETIME_FILE_PATH, 'timestamp': WEEKLY_TIMESTAMP_FILE_PATH},
-        'M': {'datetime': MONTHLY_DATETIME_FILE_PATH, 'timestamp': MONTHLY_TIMESTAMP_FILE_PATH}
-    }
-
-    if df is None or df.empty:
-        raise ValueError("DataFrame is empty or None")
-
-    date_freq = ['H', 'D', 'W', 'M']
-
-    for freq in date_freq:
-        datetime_path = file_paths[freq]['datetime']
-        timestamp_path = file_paths[freq]['timestamp']
-
-        if freq == 'H':
-            # Assuming process_and_save_hourly_data is defined to handle hourly data
-            process_and_save_hourly_data(df, datetime_path, timestamp_path)
-        else:
-            # Assuming process_and_save_freq_data is defined to handle D, W, M frequencies
-            process_and_save_freq_data(datetime_path, timestamp_path, resample=freq)
-
-
-def read_frequency_data(file_paths):
-    """
-    Reads frequency data from specified file paths.
-
-    Args:
-    - file_paths (dict): Dictionary containing file paths for hourly, daily, weekly, and monthly data.
-
-    Returns:
-    - Tuple of DataFrames: (df_hourly, df_daily, df_weekly, df_monthly)
-    """
-    try:
-        df_hourly = pd.read_csv(file_paths['hourly'])
-        df_daily = pd.read_csv(file_paths['daily'])
-        df_weekly = pd.read_csv(file_paths['weekly'])
-        df_monthly = pd.read_csv(file_paths['monthly'])
-    except FileNotFoundError as e:
-        raise FileNotFoundError(f"Error reading files: {e}")
-
-    return df_hourly, df_daily, df_weekly, df_monthly
-
-
-def read_date_freq():
-    file_paths_date = {
-        'hourly': HOURLY_DATETIME_FILE_PATH,
-        'daily': DAILY_DATETIME_FILE_PATH,
-        'weekly': WEEKLY_DATETIME_FILE_PATH,
-        'monthly': MONTHLY_DATETIME_FILE_PATH
-    }
-    return read_frequency_data(file_paths_date)
-
-
-def read_timestamp_freq():
-    file_paths_timestamp = {
-        'hourly': HOURLY_TIMESTAMP_FILE_PATH,
-        'daily': DAILY_TIMESTAMP_FILE_PATH,
-        'weekly': WEEKLY_TIMESTAMP_FILE_PATH,
-        'monthly': MONTHLY_TIMESTAMP_FILE_PATH
-    }
-    return read_frequency_data(file_paths_timestamp)

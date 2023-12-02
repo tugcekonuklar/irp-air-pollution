@@ -1,90 +1,387 @@
-from sklearn.decomposition import PCA
+from datetime import datetime
+
 import numpy as np
 import xgboost as xgb
-from sklearn.pipeline import Pipeline
-from sklearn.ensemble import GradientBoostingRegressor, HistGradientBoostingRegressor, AdaBoostRegressor, RandomForestRegressor 
-import model_base as mb
 from catboost import CatBoostRegressor
-from sklearn.tree import DecisionTreeRegressor
-from sklearn.model_selection import RandomizedSearchCV
-from sklearn.preprocessing import StandardScaler
-from datetime import datetime
-from sklearn.model_selection import TimeSeriesSplit
 from scipy.stats import randint as sp_randint, uniform
+from sklearn.decomposition import PCA
+from sklearn.ensemble import GradientBoostingRegressor, HistGradientBoostingRegressor, AdaBoostRegressor, \
+    RandomForestRegressor
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.pipeline import Pipeline
+from sklearn.preprocessing import StandardScaler
+from sklearn.tree import DecisionTreeRegressor
 
-FEATURES = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']
-TARGET = 'PM2.5-Value'
+import model_base as mb
 
 GRADIENT_BOOSTING = 'gradient_boosting'
 HISTOGRAM_GRADIENT_BOOSTING = 'histogram_gradient_boosting'
 XGBOOST = 'xgboost'
 ADABOOST = 'adaboost'
 CATBOOST = 'catboost'
-RAINFOREST= 'randomforest'
-
-GBR_MODEL = ('gbr', GradientBoostingRegressor(learning_rate=0.1,
-                                              max_depth=3,
-                                              min_samples_leaf=3,
-                                              min_samples_split=6,
-                                              n_estimators=406))
-HIST_GBR_MODEL = ('hist_gbr', HistGradientBoostingRegressor(learning_rate=0.04410482473745831,
-                                                            max_depth=9,
-                                                            max_iter=373,
-                                                            min_samples_leaf=23))
-XGB_MODEL = ('xgb', xgb.XGBRegressor(n_estimators=205,
-                                     max_depth=8,
-                                     learning_rate=0.10351332282682328,
-                                     subsample=0.7838501639099957,
-                                     colsample_bytree=0.831261142176991,
-                                     min_child_weight=6))
-ADA_MODEL = AdaBoostRegressor(DecisionTreeRegressor(max_depth=8),
-                              learning_rate=0.16297508346206444,
-                              n_estimators=70)
-
-CAT_BOOSTING = CatBoostRegressor(
-    learning_rate=0.1,
-    l2_leaf_reg=3,
-    iterations=200,
-    depth=4)
+RANDOMFOREST = 'randomforest'
 
 
-RAIN_FOREST = RandomForestRegressor(
-        n_estimators=21,
-        max_depth='log2',
-        min_samples_leaf=5,
-        min_samples_split=10,
-        max_features=266,
+def get_gbr_best_params(frequency):
+    """
+    Returns the best parameters for Gradient Boosting Regressor based on the specified frequency.
+
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
+    """
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'learning_rate': 0.05,
+            'max_depth': 6,
+            'min_samples_leaf': 8,
+            'min_samples_split': 6,
+            'n_estimators': 202
+        },
+        'D': {
+            'learning_rate': 0.05,
+            'max_depth': 6,
+            'min_samples_leaf': 8,
+            'min_samples_split': 6,
+            'n_estimators': 202
+        },
+        'W': {
+            'learning_rate': 0.1,
+            'max_depth': 3,
+            'min_samples_leaf': 3,
+            'min_samples_split': 6,
+            'n_estimators': 406
+        },
+        'M': {
+            'learning_rate': 0.1,
+            'max_depth': 3,
+            'min_samples_leaf': 3,
+            'min_samples_split': 6,
+            'n_estimators': 406
+        }
+    }
+
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
+
+
+def get_hist_gbr_best_params(frequency):
+    """
+    Returns the best parameters for Hist Gradient Boosting Regressor based on the specified frequency.
+
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
+    """
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'learning_rate': 0.04410482473745831,
+            'max_depth': 9,
+            'max_iter': 373,
+            'min_samples_leaf': 23
+        },
+        'D': {
+            'learning_rate': 0.04410482473745831,
+            'max_depth': 9,
+            'max_iter': 373,
+            'min_samples_leaf': 23
+        },
+        'W': {
+            'learning_rate': 0.04410482473745831,
+            'max_depth': 9,
+            'max_iter': 373,
+            'min_samples_leaf': 23
+        },
+        'M': {
+            'learning_rate': 0.04410482473745831,
+            'max_depth': 9,
+            'max_iter': 373,
+            'min_samples_leaf': 23
+        }
+    }
+
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
+
+
+def get_xgb_best_params(frequency):
+    """
+    Returns the best parameters for XGBoost Regressor based on the specified frequency.
+
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
+    """
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'n_estimators': 714,
+            'max_depth': 7,
+            'learning_rate': 0.06503043695984914,
+            'subsample': 0.7229163764267956,
+            'colsample_bytree': 0.8982714934301164,
+            'min_child_weight': 5
+        },
+        'D': {
+            'n_estimators': 205,
+            'max_depth': 8,
+            'learning_rate': 0.10351332282682328,
+            'subsample': 0.7838501639099957,
+            'colsample_bytree': 0.831261142176991,
+            'min_child_weight': 6
+        },
+        'W': {
+            'n_estimators': 205,
+            'max_depth': 8,
+            'learning_rate': 0.10351332282682328,
+            'subsample': 0.7838501639099957,
+            'colsample_bytree': 0.831261142176991,
+            'min_child_weight': 6
+        },
+        'M': {
+            'n_estimators': 205,
+            'max_depth': 8,
+            'learning_rate': 0.10351332282682328,
+            'subsample': 0.7838501639099957,
+            'colsample_bytree': 0.831261142176991,
+            'min_child_weight': 6
+        }
+    }
+
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
+
+
+def get_ada_best_params(frequency):
+    """
+    Returns the best parameters for XGBoost Regressor based on the specified frequency.
+
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
+    """
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'max_depth': 8,
+            'learning_rate': 0.16297508346206444,
+            'n_estimators': 70,
+        },
+        'D': {
+            'max_depth': 8,
+            'learning_rate': 0.16297508346206444,
+            'n_estimators': 70,
+        },
+        'W': {
+            'max_depth': 8,
+            'learning_rate': 0.16297508346206444,
+            'n_estimators': 70,
+        },
+        'M': {
+            'max_depth': 8,
+            'learning_rate': 0.16297508346206444,
+            'n_estimators': 70,
+        }
+    }
+
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
+
+
+def get_cat_best_params(frequency):
+    """
+    Returns the best parameters for CatBoost Regressor based on the specified frequency.
+
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
+    """
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'l2_leaf_reg': 3,
+            'learning_rate': 0.1,
+            'iterations': 200,
+            'depth': 4
+        },
+        'D': {
+            'l2_leaf_reg': 3,
+            'learning_rate': 0.1,
+            'iterations': 200,
+            'depth': 4
+        },
+        'W': {
+            'l2_leaf_reg': 3,
+            'learning_rate': 0.1,
+            'iterations': 200,
+            'depth': 4
+        },
+        'M': {
+            'l2_leaf_reg': 3,
+            'learning_rate': 0.1,
+            'iterations': 200,
+            'depth': 4
+        }
+    }
+
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
+
+
+def get_random_forest_best_params(frequency):
+    """
+    Returns the best parameters for Random Forest Regressor based on the specified frequency.
+
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
+    """
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'max_depth': 21,
+            'n_estimators': 266,
+            'max_features': 'log2',
+            'min_samples_leaf': 5,
+            'min_samples_split': 10,
+        },
+        'D': {
+            'max_depth': 21,
+            'n_estimators': 266,
+            'max_features': 'log2',
+            'min_samples_leaf': 5,
+            'min_samples_split': 10,
+        },
+        'W': {
+            'max_depth': 21,
+            'n_estimators': 266,
+            'max_features': 'log2',
+            'min_samples_leaf': 5,
+            'min_samples_split': 10,
+        },
+        'M': {
+            'max_depth': 21,
+            'n_estimators': 266,
+            'max_features': 'log2',
+            'min_samples_leaf': 5,
+            'min_samples_split': 10,
+        }
+    }
+
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
+
+
+# best_params = {
+#     'max_depth': 21,
+#     'max_features': 'log2',
+#     'min_samples_leaf': 5,
+#     'min_samples_split': 10,
+#     'n_estimators': 266
+# }
+
+def get_gbr_model(frequency):
+    best_params = get_gbr_best_params(frequency)
+    return ('gbr', GradientBoostingRegressor(learning_rate=best_params['learning_rate'],
+                                             max_depth=best_params['max_depth'],
+                                             min_samples_leaf=best_params['min_samples_leaf'],
+                                             min_samples_split=best_params['min_samples_split'],
+                                             n_estimators=best_params['n_estimators']))
+
+
+def get_hist_gbr_model(frequency):
+    best_params = get_hist_gbr_best_params(frequency)
+    return ('hist_gbr', HistGradientBoostingRegressor(learning_rate=best_params['learning_rate'],
+                                                      max_depth=best_params['max_depth'],
+                                                      max_iter=best_params['max_iter'],
+                                                      min_samples_leaf=best_params['min_samples_leaf']))
+
+
+def get_xgb_model(frequency):
+    best_params = get_xgb_best_params(frequency)
+    return ('xgb', xgb.XGBRegressor(n_estimators=best_params['n_estimators'],
+                                    max_depth=best_params['max_depth'],
+                                    learning_rate=best_params['learning_rate'],
+                                    subsample=best_params['subsample'],
+                                    colsample_bytree=best_params['colsample_bytree'],
+                                    min_child_weight=best_params['min_child_weight']))
+
+
+def get_ada_model(frequency):
+    best_params = get_ada_best_params(frequency)
+    return AdaBoostRegressor(DecisionTreeRegressor(max_depth=best_params['max_depth']),
+                             learning_rate=best_params['learning_rate'],
+                             n_estimators=best_params['n_estimators'])
+
+
+def get_cat_model(frequency):
+    best_params = get_cat_best_params(frequency)
+    return CatBoostRegressor(learning_rate=best_params['learning_rate'],
+                             l2_leaf_reg=best_params['l2_leaf_reg'],
+                             iterations=best_params['iterations'],
+                             depth=best_params['depth'])
+
+
+def get_random_forest_model(frequency):
+    best_params = get_random_forest_best_params(frequency)
+    return RandomForestRegressor(
+        n_estimators=best_params['n_estimators'],
+        max_depth=best_params['max_depth'],
+        min_samples_leaf=best_params['min_samples_leaf'],
+        min_samples_split=best_params['min_samples_split'],
+        max_features=best_params['max_features'],
         # random_state=42  # Use a fixed seed for reproducibility
     )
 
 
-def init_ensemble_model(algorithm: str):
-    if algorithm == GRADIENT_BOOSTING:
-        return Pipeline([
-            ('scaler', StandardScaler()),
-            ('pca', PCA(n_components=0.95)),
-            GBR_MODEL
-        ])
-    elif algorithm == HISTOGRAM_GRADIENT_BOOSTING:
-        return Pipeline([
-            ('scaler', StandardScaler()),
-            ('pca', PCA(n_components=0.95)),
-            HIST_GBR_MODEL
-        ])
-    elif algorithm == XGBOOST:
-        return Pipeline([
-            ('scaler', StandardScaler()),
-            ('pca', PCA(n_components=4)),
-            XGB_MODEL
-        ])
-    elif algorithm == ADABOOST:
-        return ADA_MODEL
-    elif algorithm == CATBOOST:
-        return CAT_BOOSTING
-    elif algorithm == RAINFOREST:
-        return RAIN_FOREST
-    else:
-        raise ValueError("Unknown algorithm enum provided!")
+# GBR_MODEL = ('gbr', GradientBoostingRegressor(learning_rate=0.1,
+#                                               max_depth=3,
+#                                               min_samples_leaf=3,
+#                                               min_samples_split=6,
+#                                               n_estimators=406))
+# HIST_GBR_MODEL = ('hist_gbr', HistGradientBoostingRegressor(learning_rate=0.04410482473745831,
+#                                                             max_depth=9,
+#                                                             max_iter=373,
+#                                                             min_samples_leaf=23))
+# XGB_MODEL = ('xgb', xgb.XGBRegressor(n_estimators=205,
+#                                      max_depth=8,
+#                                      learning_rate=0.10351332282682328,
+#                                      subsample=0.7838501639099957,
+#                                      colsample_bytree=0.831261142176991,
+#                                      min_child_weight=6))
+# ADA_MODEL = AdaBoostRegressor(DecisionTreeRegressor(max_depth=8),
+#                               learning_rate=0.16297508346206444,
+#                               n_estimators=70)
+
+# CAT_BOOSTING = CatBoostRegressor(
+#     learning_rate=0.1,
+#     l2_leaf_reg=3,
+#     iterations=200,
+#     depth=4)
+
+# RANDOM_FOREST = RandomForestRegressor(
+#     n_estimators=21,
+#     max_depth='log2',
+#     min_samples_leaf=5,
+#     min_samples_split=10,
+#     max_features=266,
+#     # random_state=42  # Use a fixed seed for reproducibility
+# )
 
 
 def get_gb_param_distribution():
@@ -137,7 +434,8 @@ def get_catboost_distribution():
         'l2_leaf_reg': [1, 3, 5, 7, 9]
     }
 
-def get_rainforest_distribution():
+
+def get_randomforest_distribution():
     return {
         'n_estimators': sp_randint(100, 1000),
         'max_depth': sp_randint(3, 30),
@@ -145,6 +443,36 @@ def get_rainforest_distribution():
         'min_samples_leaf': sp_randint(1, 11),
         'max_features': ['auto', 'sqrt', 'log2', None]
     }
+
+
+def init_ensemble_model(algorithm: str, frequency='H'):
+    if algorithm == GRADIENT_BOOSTING:
+        return Pipeline([
+            ('scaler', StandardScaler()),
+            ('pca', PCA(n_components=0.95)),
+            get_gbr_model(frequency)
+        ])
+    elif algorithm == HISTOGRAM_GRADIENT_BOOSTING:
+        return Pipeline([
+            ('scaler', StandardScaler()),
+            ('pca', PCA(n_components=0.95)),
+            get_hist_gbr_model(frequency)
+        ])
+    elif algorithm == XGBOOST:
+        return Pipeline([
+            ('scaler', StandardScaler()),
+            ('pca', PCA(n_components=4)),
+            get_xgb_model(frequency)
+        ])
+    elif algorithm == ADABOOST:
+        return get_ada_model(frequency)
+    elif algorithm == CATBOOST:
+        return get_cat_model(frequency)
+    elif algorithm == RANDOMFOREST:
+        return get_random_forest_model(frequency)
+    else:
+        raise ValueError("Unknown algorithm enum provided!")
+
 
 def get_param_distribution_by_algorithm(algorithm: str):
     if algorithm == GRADIENT_BOOSTING:
@@ -157,13 +485,13 @@ def get_param_distribution_by_algorithm(algorithm: str):
         return get_ada_param_distribution()
     elif algorithm == CATBOOST:
         return get_catboost_distribution()
-    elif algorithm == RAINFOREST:
-        return get_rainforest_distribution()
+    elif algorithm == RANDOMFOREST:
+        return get_randomforest_distribution()
     else:
         raise ValueError("Unknown algorithm enum provided!")
 
 
-def tune_and_evaluate(df, ensemble_alg: str):
+def tune_and_evaluate(df, ensemble_alg: str, frequency='H'):
     n_iter_search = 10
     random_state = 42
 
@@ -182,10 +510,10 @@ def tune_and_evaluate(df, ensemble_alg: str):
             ('scaler', StandardScaler()),
             ('adaboost', AdaBoostRegressor(DecisionTreeRegressor(), random_state=42))
         ])
-    elif ensemble_alg == RAINFOREST:
-        model = RandomForestRegressor()  
+    elif ensemble_alg == RANDOMFOREST:
+        model = RandomForestRegressor()
     else:
-        model = init_ensemble_model(ensemble_alg)
+        model = init_ensemble_model(ensemble_alg, frequency)
 
     # Define the parameter space for the grid search
     param_distributions = get_param_distribution_by_algorithm(ensemble_alg)
@@ -225,21 +553,21 @@ def tune_and_evaluate(df, ensemble_alg: str):
     return random_search.best_estimator_
 
 
-def train_and_evolve(df, ensemble_alg: str):
+def train_and_evolve(df, ensemble_alg: str, frequency='H'):
     train_data, validation_data, test_data = mb.split_data(df)
     # Extract the features
     X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
     # Extract the target variable
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
 
-    model = init_ensemble_model(ensemble_alg)
+    model = init_ensemble_model(ensemble_alg, frequency)
     # Fit the model on training data
     model.fit(X_train, y_train)
 
     # VALIDATION Prediction and Evolution
     y_val_pred = model.predict(X_val)
 
-    print(y_val_pred)
+    # print(y_val_pred)
 
     # Validation Error Metric
     mb.evolve_error_metrics(y_val, y_val_pred)
@@ -248,7 +576,7 @@ def train_and_evolve(df, ensemble_alg: str):
     # TEST Prediction and Evolution
     y_test_pred = model.predict(X_test)
 
-    print(y_test_pred)
+    # print(y_test_pred)
 
     # Test Error Metric
     mb.evolve_error_metrics(y_test, y_test_pred)
@@ -258,40 +586,42 @@ def train_and_evolve(df, ensemble_alg: str):
     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
 
-best_params = {
-    'max_depth': 21,
-    'max_features': 'log2',
-    'min_samples_leaf': 5,
-    'min_samples_split': 10,
-    'n_estimators': 266
-}
-    
-    
-def init_random_forest_model():
-    return RandomForestRegressor(
-        n_estimators=best_params['n_estimators'],
-        max_depth=best_params['max_depth'],
-        min_samples_leaf=best_params['min_samples_leaf'],
-        min_samples_split=best_params['min_samples_split'],
-        max_features=best_params['max_features'],
-        # random_state=42  # Use a fixed seed for reproducibility
-    )
-    
-def train_and_evolve_bagging(df):
+
+# best_params = {
+#     'max_depth': 21,
+#     'max_features': 'log2',
+#     'min_samples_leaf': 5,
+#     'min_samples_split': 10,
+#     'n_estimators': 266
+# }
+
+
+# def init_random_forest_model():
+#     return RandomForestRegressor(
+#         n_estimators=best_params['n_estimators'],
+#         max_depth=best_params['max_depth'],
+#         min_samples_leaf=best_params['min_samples_leaf'],
+#         min_samples_split=best_params['min_samples_split'],
+#         max_features=best_params['max_features'],
+#         # random_state=42  # Use a fixed seed for reproducibility
+#     )
+
+
+def train_and_evolve_bagging(df, frequency='H'):
     train_data, validation_data, test_data = mb.split_data(df)
     # Extract the features
     X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
     # Extract the target variable
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
 
-    model = init_random_forest_model()
+    model = get_random_forest_model(frequency)
     # Fit the model on training data
     model.fit(X_train, y_train)
 
     # VALIDATION Prediction and Evolution
     y_val_pred = model.predict(X_val)
 
-    print(y_val_pred)
+    #     print(y_val_pred)
 
     # Validation Error Metric
     mb.evolve_error_metrics(y_val, y_val_pred)
@@ -300,7 +630,7 @@ def train_and_evolve_bagging(df):
     # TEST Prediction and Evolution
     y_test_pred = model.predict(X_test)
 
-    print(y_test_pred)
+    #     print(y_test_pred)
 
     # Test Error Metric
     mb.evolve_error_metrics(y_test, y_test_pred)

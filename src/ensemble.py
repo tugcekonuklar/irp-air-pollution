@@ -261,25 +261,25 @@ def get_random_forest_best_params(frequency):
             'min_samples_split': 9,
         },
         'D': {
-            'max_depth': 28,
-            'n_estimators': 192,
-            'max_features': 'auto',
-            'min_samples_leaf': 2,
-            'min_samples_split': 5,
+            'max_depth': 9,
+            'n_estimators': 714,
+            'max_features': None,
+            'min_samples_leaf': 8,
+            'min_samples_split': 6,
         },
         'W': {
-            'max_depth': 14,
-            'n_estimators': 975,
-            'max_features': 'auto',
-            'min_samples_leaf': 1,
-            'min_samples_split': 4,
+            'max_depth': 21,
+            'n_estimators': 266,
+            'max_features': 'log2',
+            'min_samples_leaf': 5,
+            'min_samples_split': 10,
         },
         'M': {
-            'max_depth': 14,
-            'n_estimators': 975,
-            'max_features': 'auto',
-            'min_samples_leaf': 1,
-            'min_samples_split': 4,
+            'max_depth': 21,
+            'n_estimators': 266,
+            'max_features': 'log2',
+            'min_samples_leaf': 5,
+            'min_samples_split': 10,
         }
     }
 
@@ -621,7 +621,7 @@ def train_and_evolve_bagging(df, frequency='H'):
     # VALIDATION Prediction and Evolution
     y_val_pred = model.predict(X_val)
 
-    #     print(y_val_pred)
+    #  print(y_val_pred)
 
     # Validation Error Metric
     mb.evolve_error_metrics(y_val, y_val_pred)
@@ -630,7 +630,7 @@ def train_and_evolve_bagging(df, frequency='H'):
     # TEST Prediction and Evolution
     y_test_pred = model.predict(X_test)
 
-    #     print(y_test_pred)
+    # print(y_test_pred)
 
     # Test Error Metric
     mb.evolve_error_metrics(y_test, y_test_pred)

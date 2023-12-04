@@ -10,3 +10,4 @@ pmdarima==2.0.4
 catboost==1.2.2
 xgboost==2.0.1
 scipy==1.11.3
+keras-tuner==1.4.6

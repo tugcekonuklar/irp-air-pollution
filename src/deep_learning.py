@@ -1,5 +1,4 @@
 from tensorflow.keras.models import Sequential
-# from tensorflow.keras.optimizers.legacy import Adam
 from datetime import datetime
 
 import keras_tuner
@@ -8,348 +7,306 @@ import pandas as pd
 from sklearn.preprocessing import MinMaxScaler
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.layers import LSTM, Dense, Dropout
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
-
 import model_base as mb
+import keras_tuner
+from kerastuner.tuners import RandomSearch
+from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.models import load_model
 
 
-#
-# def create_model(X_train, learning_rate=0.001, n_layers=2, n_nodes=64, dropout_rate=0.1):
-#     model = Sequential()
-#     for i in range(n_layers):
-#         if i == 0:
-#             model.add(Dense(n_nodes, input_dim=X_train.shape[1], activation='relu'))
-#         else:
-#             model.add(Dense(n_nodes, activation='relu'))
-#         model.add(Dropout(dropout_rate))
-#     model.add(Dense(1, activation='linear'))
-#     optimizer = Adam(learning_rate=learning_rate)
-#     model.compile(optimizer=optimizer, loss='mean_squared_error')
-#     return model
-#
-#
-# def ann_tune_and_evaluate(df):
-#     n_iter_search = 10
-#     random_state = 42
-#
-#     scaler = MinMaxScaler()
-#     # Define your features and target variable
-#     train_data, validation_data, test_data = mb.split_data(df)
-#     # Extract the features
-#     X_train, X_val, X_test = mb.scale_features(train_data, validation_data, test_data, scaler)
-#     # Extract the target variable
-#     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-#
-#     print(f'Started {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-#
-#     # Define the hyperparameter space
-#     learning_rates = [0.001, 0.01, 0.1]
-#     n_layers_options = [2, 3]
-#     n_nodes_options = [32, 64]
-#     dropout_rates = [0.1, 0.2]
-#
-#     best_val_loss = float('inf')
-#     best_hyperparams = {}
-#
-#     # Hyperparameter tuning loop
-#     for lr in learning_rates:
-#         for n_layers in n_layers_options:
-#             for n_nodes in n_nodes_options:
-#                 for dropout_rate in dropout_rates:
-#                     model = create_model(X_train, lr, n_layers, n_nodes, dropout_rate)
-#                     model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_val, y_val), verbose=1)
-#                     val_loss = model.evaluate(X_val, y_val, verbose=1)
-#                     if val_loss < best_val_loss:
-#                         best_val_loss = val_loss
-#                         best_hyperparams = {'learning_rate': lr, 'n_layers': n_layers, 'n_nodes': n_nodes,
-#                                             'dropout_rate': dropout_rate}
-#
-#     print("Best Hyperparameters:")
-#     print(best_hyperparams)
-#     print(f"Validation Loss with Best Hyperparameters: {best_val_loss}")
-#     best_model = create_model(X_val, **best_hyperparams)
-#     best_model.fit(X_val, y_val, epochs=100, batch_size=32, verbose=1)
-#     test_loss = best_model.evaluate(X_test, y_test, verbose=0)
-#     print(f"Test Loss: {test_loss}")
-#
-#     print(f'Finished {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-#     # Return the best estimator and the MSE scores
-#     # return random_search.best_estimator_
-#
+def set_index_to_datetime(df, datetime_column_name='Start', datetime_format='%Y-%m-%d %H:%M:%S'):
+    """
+    Set the DataFrame's index to a datetime column with a specific format.
 
-# Define the model building function
-def ann_build_model(hp):
-    model = keras.Sequential()
-    for i in range(hp.Int("num_layers", 1, 5)):
-        model.add(
-            layers.Dense(
-                units=hp.Int(f"units_{i}", min_value=32, max_value=512, step=32),
-                activation=hp.Choice("activation", ["relu", "tanh"]),
-            )
-        )
-    if hp.Boolean("dropout"):
-        model.add(layers.Dropout(rate=0.25))
-    model.add(layers.Dense(1, activation="linear"))
-    learning_rate = hp.Float("lr", min_value=1e-4, max_value=1e-2, sampling="log")
-    model.compile(
-        optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
-        loss="mean_squared_error",
-        metrics=[keras.metrics.MeanAbsoluteError()],
-    )
-    return model
+    Parameters:
+        df (DataFrame): The DataFrame for which to set the index.
+        datetime_column_name (str): The name of the datetime column.
+        datetime_format (str): The format of the datetime column (default is '%Y-%m-%d %H:%M:%S').
 
-def ann_tune_and_get_best_model(df ,epochs=10, max_trials=5, executions_per_trial=2):
-    # Split the data
-    train_data, validation_data, test_data = mb.split_data(df)
+    Returns:
+        DataFrame: The DataFrame with the updated index.
+    """
 
-    # Scale the features
-    X_train, X_val, X_test = mb.scale_features(train_data, validation_data, test_data, MinMaxScaler())
-
-    # Extract the target variable
-    y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-
-    # Initialize the tuner
-    tuner = keras_tuner.RandomSearch(
-        hypermodel=ann_build_model,
-        objective=keras_tuner.Objective("val_mean_absolute_error", direction="min"),
-        max_trials=max_trials,
-        executions_per_trial=executions_per_trial,
-        overwrite=True,
-        directory="my_dir",
-        project_name="irp_ann",
-    )
-
-    # Perform the hyperparameter search
-    tuner.search(X_train, y_train, epochs=epochs, validation_data=(X_val, y_val))
-
-    # Get the best model
-    best_model = tuner.get_best_models()[0]
-
-    # Print the best model
-    print("===== Best Model =====")
-    print(best_model)
-
-    # Print the tuner's results summary
-    tuner.results_summary()
-
-    return best_model
+    df.index = pd.to_datetime(df[datetime_column_name], format=datetime_format)
+    return df
 
 
-def ann_train_and_evolve(df):
-    train_data, validation_data, test_data = mb.split_data(df)
-    # Extract the features
-    # Normalize the features
-    X_train, X_val, X_test = mb.scale_features(train_data, validation_data, test_data, MinMaxScaler())
-    # Extract the target variable
-    y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-
-    # Define the parameters
-    params = {
-        'learning_rate': 0.00014992878789921055,  # 0.0037702242108628697,
-        'n_layers': 3,
-        'n_nodes': 32,
-        'dropout_rate': 0.25,
-        'epoch': 10
-    }
-
-    early_stopping = tf.keras.callbacks.EarlyStopping(monitor='val_loss',
-                                                      patience=2,
-                                                      mode='min')
-
-    # Create the ANN model with the specified parameters
-    model = Sequential()
-
-    #     # Add the input layer and the first hidden layer
-    #     model.add(Dense(params['n_nodes'], input_dim=X_train.shape[1], activation='relu'))
-    #     model.add(Dropout(params['dropout_rate']))
-
-    #     # Add the second hidden layer
-    #     model.add(Dense(params['n_nodes'], activation='relu'))
-    #     model.add(Dropout(params['dropout_rate']))
-
-    #  # Add the second hidden layer
-    # model.add(Dense(params['n_nodes'], activation='relu'))
-    # model.add(Dropout(params['dropout_rate']))
-
-    # Add the input layer and the first hidden layer
-    model.add(Dense(448, input_dim=X_train.shape[1], activation='relu'))
-    # model.add(Dropout(params['dropout_rate']))
-
-    # Add the second hidden layer
-    model.add(Dense(128, activation='relu'))
-    # model.add(Dropout(params['dropout_rate']))
-
-    # Add the second hidden layer
-    model.add(Dense(32, activation='relu'))
-    # model.add(Dropout(params['dropout_rate']))
-
-    # Add the output layer
-    model.add(Dense(1, activation='linear'))
-
-    # Compile the model
-    optimizer = Adam(learning_rate=params['learning_rate'])
-    # optimizer = Adam(learning_rate=0.01)
-    model.compile(optimizer=optimizer, loss='mean_squared_error')
-
-    # ANN model architecture
-    # Train the model
-    model.fit(X_train, y_train, epochs=params['epoch'], batch_size=32, validation_data=(X_val, y_val), verbose=1)
-
-    # Evaluate the model
-    loss = model.evaluate(X_test, y_test, verbose=1)
-    print(f'Model Loss on Test Data: {loss}')
-
-    # VALIDATION Prediction and Evolution
-    y_val_pred = model.predict(X_val)
-
-    print(y_val_pred)
-
-    # Validation Error Metric
-    mb.evolve_error_metrics(y_val, y_val_pred)
-    mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
-
-    # TEST Prediction and Evolution
-    y_test_pred = model.predict(X_test)
-
-    print(y_test_pred)
-
-    # Test Error Metric
-    mb.evolve_error_metrics(y_test, y_test_pred)
-    mb.naive_mean_absolute_scaled_error(y_test, y_test_pred)
-
-    # Plot
-    mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
-    mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
-
-
-FEATURES = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']
-TARGET = 'PM2.5-Value'
-ALL = ['Start', 'NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value', 'PM2.5-Value']
-
-
-def create_sequences(data, timesteps=1):
-    X, y = [], []
-    for i in range(len(data) - timesteps):
-        # Select the feature columns for the current sequence
-        X.append(data.iloc[i:i + timesteps][FEATURES].values)
-        # Select the target value for the corresponding sequence
-        y.append(data.iloc[i + timesteps][TARGET])
+def df_to_X_y(df, window_size=24):
+    df_values = df.values
+    X = [df_values[i:i + window_size] for i in range(len(df_values) - window_size)]
+    y = df_values[window_size:, 0]
     return np.array(X), np.array(y)
 
 
-def create_lstm_model(X_train, learning_rate=0.001, units=50, dropout_rate=0.1):
-    print(f'X_train: {X_train.shape[1]} and {X_train.shape[2]}')
+def add_time_features(df, datetime_column_name='Seconds'):
+    """
+    Add daily, yearly, hourly sine and cosine features to a DataFrame
+    based on a given datetime column.
+
+    Parameters:
+        df (DataFrame): The DataFrame to which features will be added.
+        datetime_column_name (str): The name of the datetime column in the DataFrame.
+
+    Returns:
+        DataFrame: The DataFrame with added time-related features.
+    """
+    timestamp_s = df[datetime_column_name]
+
+    # Define constants
+    second = 1
+    minute = 60 * second
+    hour = 60 * minute
+    day = 24 * hour
+    year = (365.2425) * day
+
+    # Add daily, yearly, hourly sine and cosine features
+    df['Day sin'] = np.sin(timestamp_s * (2 * np.pi / day))
+    df['Day cos'] = np.cos(timestamp_s * (2 * np.pi / day))
+    df['Year sin'] = np.sin(timestamp_s * (2 * np.pi / year))
+    df['Year cos'] = np.cos(timestamp_s * (2 * np.pi / year))
+    # df['Hour sin'] = np.sin(timestamp_s * (2 * np.pi / hour))
+    # df['Hour cos'] = np.cos(timestamp_s * (2 * np.pi / hour))
+
+    return df
+
+
+def preprocess_time_series(df, columns=['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value', 'PM2.5-Value']):
+    """
+    Preprocess a DataFrame with time series data.
+
+    Parameters:
+        df (DataFrame): The DataFrame containing the time series data.
+        columns (list): List of columns to select from the DataFrame.
+
+    Returns:
+        DataFrame: The preprocessed DataFrame with added time-related features.
+    """
+
+    df_ts = df[columns]
+    df_ts['Seconds'] = df_ts.index.map(pd.Timestamp.timestamp)
+    df_ts = add_time_features(df_ts, 'Seconds')
+    df_ts = df_ts.drop('Seconds', axis=1)
+
+    return df_ts
+
+
+def preprocess_and_normalize_data(df, window_size=24, train_ratio=0.6, val_ratio=0.2):
+    """
+    Preprocess and normalize time series data.
+
+    Parameters:
+        df (DataFrame): The DataFrame containing the time series data.
+        window_size (int): The window size for creating input sequences.
+        train_ratio (float): The ratio of data used for training.
+        val_ratio (float): The ratio of data used for validation.
+
+    Returns:
+        numpy.ndarray: Normalized training data.
+        numpy.ndarray: Normalized validation data.
+        numpy.ndarray: Normalized testing data.
+        numpy.ndarray: Corresponding training labels.
+        numpy.ndarray: Corresponding validation labels.
+        numpy.ndarray: Corresponding testing labels.
+    """
+
+    X, y = df_to_X_y(df, window_size=window_size)
+
+    n = len(X)
+    X_train, y_train = X[:int(n * train_ratio)], y[:int(n * train_ratio)]
+    X_val, y_val = X[int(n * train_ratio):int(n * (train_ratio + val_ratio))], y[int(n * train_ratio):int(
+        n * (train_ratio + val_ratio))]
+    X_test, y_test = X[int(n * (train_ratio + val_ratio)):], y[int(n * (train_ratio + val_ratio)):]
+
+    # scaler = StandardScaler()
+    # X_train_norm = scaler.fit_transform(X_train)
+    # X_val_norm = scaler.transform(X_val)
+    # X_test_norm = scaler.transform(X_test)
+    X_train_mean = X_train.mean()
+    X_train_std = X_train.std()
+
+    X_train_norm = (X_train - X_train_mean) / X_train_std
+    X_val_norm = (X_val - X_train_mean) / X_train_std
+    X_test_norm = (X_test - X_train_mean) / X_train_std
+
+    return X_train_norm, X_val_norm, X_test_norm, y_train, y_val, y_test
+
+
+def build_and_tune_lstm_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10, frequency='H'):
+    """
+    Build and tune an LSTM model using Keras Tuner.
+
+    Parameters:
+        X_train (numpy.ndarray): Training data.
+        y_train (numpy.ndarray): Training labels.
+        X_val (numpy.ndarray): Validation data.
+        y_val (numpy.ndarray): Validation labels.
+        max_trials (int): Maximum number of hyperparameter tuning trials.
+        num_epochs (int): Number of training epochs per trial.
+
+    Returns:
+        tensorflow.keras.models.Sequential: The best-tuned LSTM model.
+    """
+
+    def build_lstm_model(hp):
+        model = keras.Sequential()
+        model.add(layers.InputLayer((X_train.shape[1], X_train.shape[2])))
+        model.add(
+            layers.LSTM(
+                units=hp.Int("units", min_value=32, max_value=512, step=32),
+                activation=hp.Choice("activation", ["relu", "tanh"]),
+            )
+        )
+        if hp.Boolean("dropout"):
+            model.add(layers.Dropout(rate=0.25))
+        for i in range(hp.Int("num_layers", 1, 5)):
+            model.add(
+                layers.Dense(
+                    units=hp.Int("units", min_value=32, max_value=512, step=32),
+                    activation=hp.Choice("activation", ["relu", "tanh"]),
+                )
+            )
+        model.add(layers.Dense(1, activation="linear"))
+        learning_rate = hp.Float("lr", min_value=1e-4, max_value=1e-2, sampling="log")
+        model.compile(
+            optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+            loss="mean_squared_error",
+            metrics=[keras.metrics.MeanAbsoluteError()],
+        )
+        return model
+
+    tuner = RandomSearch(
+        hypermodel=build_lstm_model,
+        objective="val_mean_absolute_error",
+        max_trials=max_trials,
+        directory="my_dir",
+        project_name="lstm_tuning",
+    )
+
+    tuner.search(X_train, y_train, epochs=num_epochs, validation_data=(X_val, y_val))
+    best_model = tuner.get_best_models(num_models=1)[0]
+    best_hp = tuner.get_best_hyperparameters()[0]
+    tuner.results_summary()
+    return best_model, best_hp
+
+
+def get_lstm_best_params(frequency):
+    """
+    Returns the best parameters for LSTM based on the specified frequency.
+
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
+    """
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'learning_rate': 0.0004489034857354316,
+            'num_layers': 3,
+            'units': [320, 32, 32],
+            'activations': ['relu', 'relu', 'relu'],
+            'dropout': False,
+        },
+        'D': {
+            'learning_rate': 0.0004489034857354316,
+            'num_layers': 3,
+            'units': [320, 32, 32],
+            'activations': ['relu', 'relu', 'relu'],
+            'dropout': False,
+        },
+        'W': {
+            'learning_rate': 0.0004489034857354316,
+            'num_layers': 3,
+            'units': [320, 32, 32],
+            'activations': ['relu', 'relu', 'relu'],
+            'dropout': False,
+        },
+        'M': {
+            'learning_rate': 0.0004489034857354316,
+            'num_layers': 3,
+            'units': [320, 32, 32],
+            'activations': ['relu', 'relu', 'relu'],
+            'dropout': False,
+        }
+    }
+
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
+
+
+def build_best_lstm_model(learning_rate=0.0004489034857354316, num_layers=3, units=[320, 32, 32],
+                          activations=['relu', 'relu', 'relu'], dropout=False):
     model = Sequential()
-    model.add(LSTM(units=units, input_shape=(X_train.shape[1], X_train.shape[2])))
-    model.add(Dropout(dropout_rate))
-    model.add(Dense(1))
-    model.compile(optimizer=Adam(learning_rate=learning_rate), loss='mean_squared_error')
+    model.add(layers.InputLayer((24, 9)))
+    model.add(layers.LSTM(units[0], activations[0]))
+
+    if dropout:
+        model.add(layers.Dropout(rate=0.25))
+
+    for i in range(1, num_layers):
+        model.add(layers.Dense(units[i], activations[i]))
+
+    model.add(layers.Dense(1, 'linear'))
+
+    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
+    loss = keras.losses.MeanSquaredError()
+    metrics = [keras.metrics.MeanAbsoluteError()]
+
+    model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
     return model
 
 
-def lstm_tune_and_evaluate(df2):
-    df = df2[ALL]
-    print(df.head())
-    df['Start'] = pd.to_datetime(df['Start'])
-    df.set_index('Start', inplace=True)
+def load_data(df):
+    df = set_index_to_datetime(df)
+    df = preprocess_time_series(df)
+    return preprocess_and_normalize_data(df)
 
-    scaler = MinMaxScaler()
-    scaled_data = scaler.fit_transform(df)
-    # Define your features and target variable
-    train_data, validation_data, test_data = mb.split_data(df)
 
-    print(f'create_sequences')
-    X_train, y_train = create_sequences(train_data)
-    X_val, y_val = create_sequences(validation_data)
-    X_test, y_test = create_sequences(test_data)
+def train_and_evaluate(df, frequency='H'):
+    X_train, X_val, X_test, y_train, y_val, y_test = load_data(df)
 
-    print(f'Extract the features')
+    best_params = get_lstm_best_params(frequency)
+    print(best_params)
 
-    print(f'Started {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
+    model = build_best_lstm_model(learning_rate=best_params['learning_rate'],
+                                  num_layers=best_params['num_layers'],
+                                  units=best_params['units'],
+                                  activations=best_params['activations'],
+                                  dropout=best_params['dropout'])
 
-    # Define the hyperparameter space
-    learning_rates = [0.001, 0.01, 0.1]
-    dropout_rates = [0.1, 0.2, 0.3]
+    #     model = Sequential()
+    #     model.add(layers.InputLayer((24, 9)))
+    #     model.add(layers.LSTM(64))
+    #     model.add(layers.Dense(8, 'relu'))
+    #     model.add(layers.Dense(1, 'linear'))
 
-    best_val_loss = float('inf')
-    best_hyperparams = {}
+    #     model.compile(loss=keras.losses.MeanSquaredError(), optimizer=keras.optimizers.Adam(learning_rate=0.0004489034857354316), metrics=[keras.metrics.MeanAbsoluteError()])
 
-    for units in [100, 150]:
-        for dropout_rate in dropout_rates:
-            for lr in learning_rates:
-                # Build the LSTM model
-                # model = Sequential()
-                # model.add(LSTM(units=units, input_shape=(X_train.shape[1], X_train.shape[2])))
-                # model.add(Dropout(dropout_rate))
-                # model.add(Dense(1))
-                # model.compile(optimizer=Adam(learning_rate=lr), loss='mean_squared_error')
-                model = create_lstm_model(X_train, lr, units, dropout_rate)
-                # Fit the model
-                history = model.fit(X_train, y_train, epochs=5, batch_size=32, validation_data=(X_val, y_val),
-                                    verbose=1)
-                # Evaluate the model
-                val_loss = history.history['val_loss'][-1]
-                if val_loss < best_val_loss:
-                    best_val_loss = val_loss
-                    best_hyperparams = {'units': units, 'dropout_rate': dropout_rate, 'learning_rate': lr}
+    cp = ModelCheckpoint(f'model{frequency}/', save_best_only=True)
+    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
 
-    print("Best Hyperparameters:")
-    print(best_hyperparams)
-    print(f"Validation Loss with Best Hyperparameters: {best_val_loss}")
-    best_model = create_lstm_model(X_val, **best_hyperparams)
-    best_model.fit(X_val, y_val, epochs=100, batch_size=32, verbose=1)
-    test_loss = best_model.evaluate(X_test, y_test, verbose=1)
-    print(f"Test Loss: {test_loss}")
+    model = load_model(f'model{frequency}/')
+    # Validation
+    val_predictions = model.predict(X_val).flatten()
+    val_results = pd.DataFrame(data={'Predictions': val_predictions, 'Actuals': y_val})
 
-    print(f'Finished {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
-    # Return the best estimator and the MSE scores
-    # return random_search.best_estimator_
+    # Error Metric for Validation
+    mb.evolve_error_metrics(val_results['Predictions'], val_results['Actuals'])
+    mb.naive_mean_absolute_scaled_error(val_results['Predictions'], val_results['Actuals'])
 
-# def lstm_train_and_evolve(df):
-#     train_data, validation_data, test_data = mb.split_data(df)
-#     # Extract the features
-#     # Normalize the features
-#     X_train, X_val, X_test =  mb.scale_features(train_data, validation_data, test_data, MinMaxScaler())
-#     # Extract the target variable
-#     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-#
-#     # LSTM model architecture
-#     model = Sequential()
-#     model.add(Dense(64, input_dim=X_train.shape[1], activation='relu'))
-#     model.add(Dropout(0.1))
-#     model.add(Dense(32, activation='relu'))
-#     model.add(Dense(1, activation='linear'))
-#
-#     # Compile the model
-#     model.compile(optimizer=Adam(learning_rate=0.001), loss='mean_squared_error')
-#
-#     # Train the model
-#     model.fit(X_train, y_train, epochs=100, batch_size=32, validation_data=(X_val, y_val), verbose=1)
-#
-#     # Evaluate the model
-#     loss = model.evaluate(X_test, y_test, verbose=0)
-#     print(f'Model Loss on Test Data: {loss}')
-#
-#     # VALIDATION Prediction and Evolution
-#     y_val_pred = model.predict(X_val)
-#
-#     print(y_val_pred)
-#
-#     # Validation Error Metric
-#     mb.evolve_error_metrics(y_val, y_val_pred)
-#     mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
-#
-#     # TEST Prediction and Evolution
-#     y_test_pred = model.predict(X_test)
-#
-#     print(y_test_pred)
-#
-#     # Test Error Metric
-#     mb.evolve_error_metrics(y_test, y_test_pred)
-#     mb.naive_mean_absolute_scaled_error(y_test, y_test_pred)
-#
-#     # Plot
-#     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
-#     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
+    # Test
+    test_predictions = model.predict(X_test).flatten()
+    test_results = pd.DataFrame(data={'Predictions': test_predictions, 'Actuals': y_test})
+
+    # Error Metric for Test
+    mb.evolve_error_metrics(test_results['Predictions'], test_results['Actuals'])
+    mb.naive_mean_absolute_scaled_error(test_results['Predictions'], test_results['Actuals'])
+
+    # Plot Validation
+    mb.plot_pm_true_predict_dl(val_results['Actuals'], val_results['Predictions'], 'Validation')
+
+    # Plot Test
+    mb.plot_pm_true_predict_dl(test_results['Actuals'], test_results['Predictions'], 'Test')

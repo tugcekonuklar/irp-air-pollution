@@ -428,28 +428,15 @@ def plot_pm_true_predict(df, y_pred, name):
     plt.show()
 
 
-def plot_pm_true_predict_dl(df, y_pred, name):
-    df = df.iloc[1:]
-    # Ensure y_pred is a 1D array if it has a single column
-    if y_pred.ndim == 2 and y_pred.shape[1] == 1:
-        y_pred = y_pred.ravel()
-
-    # Extract the target values from the dataframe
-    y_val = df[TARGET]
-
-    # Check if y_pred and y_val have the same length
-    if len(y_pred) != len(y_val):
-        raise ValueError(
-            f"y_pred and {TARGET} must have the same length, but have shapes {y_pred.shape} and {y_val.shape}")
-
+def plot_pm_true_predict_dl(y_actual, y_pred, name):
     # Plotting the actual vs predicted values
     plt.figure(figsize=(15, 5))
 
     # Actual values - using blue color with a line marker
-    plt.plot(df.index, y_val, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
+    plt.plot(y_actual.index, y_actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
 
     # Predicted values - using red color with a cross marker
-    plt.plot(df.index, y_pred, color='red', marker='x', label='Predicted', linestyle='None')
+    plt.plot(y_pred.index, y_pred, color='red', marker='x', label='Predicted', linestyle='None')
 
     plt.title(f'{name} Set - Actual vs Predicted PM2.5')
     plt.xlabel('Date')
@@ -457,6 +444,37 @@ def plot_pm_true_predict_dl(df, y_pred, name):
     plt.legend()
     plt.grid()
     plt.show()
+
+
+# def plot_pm_true_predict_dl(df, y_pred, name):
+#     df = df.iloc[1:]
+#     # Ensure y_pred is a 1D array if it has a single column
+#     if y_pred.ndim == 2 and y_pred.shape[1] == 1:
+#         y_pred = y_pred.ravel()
+
+#     # Extract the target values from the dataframe
+#     y_val = df[TARGET]
+
+#     # Check if y_pred and y_val have the same length
+#     if len(y_pred) != len(y_val):
+#         raise ValueError(
+#             f"y_pred and {TARGET} must have the same length, but have shapes {y_pred.shape} and {y_val.shape}")
+
+#     # Plotting the actual vs predicted values
+#     plt.figure(figsize=(15, 5))
+
+#     # Actual values - using blue color with a line marker
+#     plt.plot(df.index, y_val, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
+
+#     # Predicted values - using red color with a cross marker
+#     plt.plot(df.index, y_pred, color='red', marker='x', label='Predicted', linestyle='None')
+
+#     plt.title(f'{name} Set - Actual vs Predicted PM2.5')
+#     plt.xlabel('Date')
+#     plt.ylabel('PM2.5')
+#     plt.legend()
+#     plt.grid()
+#     plt.show()
 
 
 def plot_time_series(train_data, y_train, test_data, y_test, test_predictions_mean, y_test_pred, name):

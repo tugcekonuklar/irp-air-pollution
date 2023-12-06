@@ -1,4 +1,3 @@
-from tensorflow.keras.models import Sequential
 from datetime import datetime
 
 import keras_tuner
@@ -9,7 +8,6 @@ from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.optimizers import Adam
-from sklearn.preprocessing import StandardScaler
 import model_base as mb
 import keras_tuner
 from kerastuner.tuners import RandomSearch
@@ -40,6 +38,18 @@ def df_to_X_y(df, window_size=24):
     X = [df_values[i:i + window_size] for i in range(len(df_values) - window_size)]
     y = df_values[window_size:, 0]
     print(len(np.array(X)))
+    return np.array(X), np.array(y)
+
+
+def df_to_X_y3(df, window_size=7):
+    df_as_np = df.to_numpy()
+    X = []
+    y = []
+    for i in range(len(df_as_np) - window_size):
+        row = [r for r in df_as_np[i:i + window_size]]
+        X.append(row)
+        label = [df_as_np[i + window_size][0], df_as_np[i + window_size][1]]
+        y.append(label)
     return np.array(X), np.array(y)
 
 
@@ -206,32 +216,32 @@ def get_ann_best_params(frequency='H'):
     # Define best parameters for each frequency
     best_params = {
         'H': {
-            'learning_rate': 0.0019995992408133965,
-            'num_layers': 5,
-            'units': [224, 320, 384, 320, 288],
-            'activations': ['tanh', 'tanh', 'tanh', 'tanh', 'tanh'],
+            'learning_rate': 0.00033663431603295945,
+            'num_layers': 2,
+            'units': [288, 32],
+            'activations': ['relu', 'relu'],
             'dropout': True,
         },
         'D': {
-            'learning_rate': 0.00034353533937987133,
-            'num_layers': 3,
-            'units': [64, 160, 32],
-            'activations': ['tanh', 'tanh', 'tanh'],
+            'learning_rate': 0.006415517608465564,
+            'num_layers': 4,
+            'units': [352, 256, 256, 32],
+            'activations': ['relu', 'relu', 'relu', 'relu'],
             'dropout': False,
         },
         'W': {
-            'learning_rate': 0.0008264439766792489,
-            'num_layers': 2,
-            'units': [352, 32],
-            'activations': ['tanh', 'tanh'],
+            'learning_rate': 0.004533188169061783,
+            'num_layers': 3,
+            'units': [224, 224, 256],
+            'activations': ['relu', 'relu', 'relu'],
             'dropout': False,
         },
         'M': {
-            'learning_rate': 0.00015312486598661134,
-            'num_layers': 4,
-            'units': [192, 480, 224, 32],
+            'learning_rate': 0.003908373550672397,
+            'num_layers': 2,
+            'units': [160, 384, 224, 32],
             'activations': ['tanh', 'tanh', 'tanh', 'tanh'],
-            'dropout': True,
+            'dropout': False,
         }
     }
 
@@ -252,10 +262,10 @@ def get_lstm_best_params(frequency):
     # Define best parameters for each frequency
     best_params = {
         'H': {
-            'learning_rate': 0.0010932764246458526,
-            'num_layers': 2,
-            'units': [224, 32],
-            'activations': ['relu', 'relu'],
+            'learning_rate': 0.0017115621539278423,
+            'num_layers': 6,
+            'units': [64, 384, 480, 160, 32, 32],
+            'activations': ['relu', 'relu', 'relu', 'relu', 'relu', 'relu'],
             'dropout': False,
         },
         'D': {
@@ -285,56 +295,6 @@ def get_lstm_best_params(frequency):
     return best_params.get(frequency, "Invalid frequency")
 
 
-def get_cnn_best_params(frequency):
-    """
-    Returns the best parameters for LSTM based on the specified frequency.
-
-    Args:
-    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
-
-    Returns:
-    - dict: A dictionary of the best parameters.
-    """
-    # Define best parameters for each frequency
-    best_params = {
-        'H': {
-            'learning_rate': 0.0004489034857354316,
-            'num_layers': 3,
-            'filters': 64,
-            'units': [320, 32, 32],
-            'activations': ['relu', 'relu', 'relu'],
-            'dropout': False,
-        },
-        'D': {
-            'learning_rate': 0.00098949266270698,
-            'num_layers': 3,
-            'filters': 64,
-            'units': [224, 224, 224],
-            'activations': ['relu', 'relu', 'relu'],
-            'dropout': True,
-        },
-        'W': {
-            'learning_rate': 0.00098949266270698,
-            'num_layers': 3,
-            'filters': 64,
-            'units': [224, 224, 224],
-            'activations': ['relu', 'relu', 'relu'],
-            'dropout': True,
-        },
-        'M': {
-            'learning_rate': 0.00098949266270698,
-            'num_layers': 3,
-            'filters': 64,
-            'units': [224, 224, 224],
-            'activations': ['relu', 'relu', 'relu'],
-            'dropout': True,
-        }
-    }
-
-    # Return the best parameters for the specified frequency
-    return best_params.get(frequency, "Invalid frequency")
-
-
 ## ANN
 def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10, frequency='H'):
     """
@@ -354,6 +314,7 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
 
     def build_ann_model(hp):
         model = keras.Sequential()
+        model.add(layers.Flatten())
         for i in range(hp.Int("num_layers", 1, 5)):
             model.add(
                 layers.Dense(
@@ -383,6 +344,7 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
     tuner.search(X_train, y_train, epochs=num_epochs, validation_data=(X_val, y_val))
     best_model = tuner.get_best_models(num_models=1)[0]
     best_hp = tuner.get_best_hyperparameters()[0]
+    # best_model.summary()
     tuner.results_summary()
     return best_model, best_hp
 
@@ -390,7 +352,7 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
 def build_best_ann_model(learning_rate=0.0004489034857354316, num_layers=3, units=[320, 32, 32],
                          activations=['relu', 'relu', 'relu'], dropout=False):
     model = Sequential()
-
+    model.add(layers.Flatten())
     for i in range(num_layers):
         model.add(layers.Dense(units[i], activations[i]))
     if dropout:
@@ -407,7 +369,8 @@ def build_best_ann_model(learning_rate=0.0004489034857354316, num_layers=3, unit
 
 
 def ann_train_and_evaluate(df, frequency='H'):
-    X_train, X_val, X_test, y_train, y_val, y_test = ann_load_data(df, frequency)
+    X_train, X_val, X_test, y_train, y_val, y_test = load_data(df, frequency)
+    # X_train, X_val, X_test, y_train, y_val, y_test = ann_load_data(df, frequency)
 
     best_params = get_ann_best_params(frequency)
     print(best_params)
@@ -419,10 +382,10 @@ def ann_train_and_evaluate(df, frequency='H'):
                                  dropout=best_params['dropout'])
 
     rd_num = random.randint(1, 100)
-    cp = ModelCheckpoint(f'ann_model_{frequency}_{rd_num}/', save_best_only=True)
+    cp = ModelCheckpoint(f'ann_model_{frequency}/', save_best_only=True)
     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
 
-    model = load_model(f'ann_model_{frequency}_{rd_num}/')
+    model = load_model(f'ann_model_{frequency}/')
 
     print(model.summary())
 
@@ -555,10 +518,10 @@ def lstm_train_and_evaluate(df, frequency='H'):
                                   activations=best_params['activations'],
                                   dropout=best_params['dropout'])
     rd_num = random.randint(1, 100)
-    cp = ModelCheckpoint(f'lstm_model_{frequency}_{rd_num}/', save_best_only=True)
+    cp = ModelCheckpoint(f'lstm_model_{frequency}/', save_best_only=True)
     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
 
-    model = load_model(f'lstm_model_{frequency}_{rd_num}/')
+    model = load_model(f'lstm_model_{frequency}/')
     # Validation
     val_predictions = model.predict(X_val).flatten()
     val_results = pd.DataFrame(data={'Predictions': val_predictions, 'Actuals': y_val})
@@ -591,6 +554,54 @@ def lstm_tune_and_evolve(df, frequency='H'):
 
 
 ## CNN
+
+
+def get_cnn_best_params(frequency):
+    """
+    Returns the best parameters for LSTM based on the specified frequency.
+
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
+    """
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'learning_rate': 0.00010374652025290634,
+            'num_layers': 6,
+            'units': [352, 448, 416, 64, 288, 288],
+            'activations': ['tanh', 'relu', 'relu', 'relu', 'relu', 'relu'],
+            'dropout': True,
+        },
+        'D': {
+            'learning_rate': 0.006172427728586157,
+            'num_layers': 4,
+            'units': [224, 32, 512, 224],
+            'activations': ['tanh', 'relu', 'relu', 'relu'],
+            'dropout': False,
+        },
+        'W': {
+            'learning_rate': 0.002717326166807044,
+            'num_layers': 3,
+            'units': [128, 32, 512],
+            'activations': ['tanh', 'relu', 'relu'],
+            'dropout': True,
+        },
+        'M': {
+            'learning_rate': 0.002539774299219148,
+            'num_layers': 5,
+            'units': [352, 352, 448, 416, 352],
+            'activations': ['tanh', 'relu', 'relu', 'relu', 'relu'],
+            'dropout': True,
+        }
+    }
+
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
+
+
 def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10, frequency='H'):
     """
     Build and tune an CNN model using Keras Tuner.
@@ -613,11 +624,11 @@ def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
         model.add(
             layers.Conv1D(
                 filters=hp.Int("filters", min_value=32, max_value=512, step=32),
-                kernel_size=3,
+                kernel_size=2,
                 activation=hp.Choice("activation_cnn", ["relu", "tanh"]),
             )
         )
-        model.add(Flatten())
+        model.add(layers.Flatten())
 
         for i in range(hp.Int("num_layers", 1, 5)):
             model.add(
@@ -650,6 +661,7 @@ def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
     tuner.search(X_train, y_train, epochs=num_epochs, validation_data=(X_val, y_val))
     best_model = tuner.get_best_models(num_models=1)[0]
     best_hp = tuner.get_best_hyperparameters()[0]
+    best_model.summary()
     tuner.results_summary()
     return best_model, best_hp
 
@@ -658,7 +670,8 @@ def build_best_cnn_model(X_train, learning_rate=0.0004489034857354316, num_layer
                          activations=['relu', 'relu', 'relu', 'relu'], dropout=False):
     model = Sequential()
     model.add(layers.InputLayer((X_train.shape[1], X_train.shape[2])))
-    model.add(layers.Conv1D(filters=units[0], kernel_size=3, activation=activations[0]))
+    model.add(layers.Conv1D(units[0], kernel_size=2, activation=activations[0]))
+    model.add(layers.Flatten())
 
     for i in range(1, num_layers):
         model.add(layers.Dense(units[i], activations[i]))
@@ -675,24 +688,27 @@ def build_best_cnn_model(X_train, learning_rate=0.0004489034857354316, num_layer
     return model
 
 
-def cn_train_and_evaluate(df, frequency='H'):
+def cnn_train_and_evaluate(df, frequency='H'):
     X_train, X_val, X_test, y_train, y_val, y_test = load_data(df, frequency)
 
-    best_params = get_lstm_best_params(frequency)
+    best_params = get_cnn_best_params(frequency)
     print(best_params)
 
-    model = build_best_cnn_model(X_train, learning_rate=best_params['learning_rate'],
+    model = build_best_cnn_model(X_train,
+                                 learning_rate=best_params['learning_rate'],
                                  num_layers=best_params['num_layers'],
                                  units=best_params['units'],
                                  activations=best_params['activations'],
                                  dropout=best_params['dropout'])
+
     rd_num = random.randint(1, 100)
-    cp = ModelCheckpoint(f'cnn_model_{frequency}_{rd_num}/', save_best_only=True)
+    cp = ModelCheckpoint(f'cnn_model_{frequency}/', save_best_only=True)
     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
 
-    model = load_model(f'cnn_model_{frequency}_{rd_num}/')
+    model = load_model(f'cnn_model_{frequency}/')
     # Validation
     val_predictions = model.predict(X_val).flatten()
+
     val_results = pd.DataFrame(data={'Predictions': val_predictions, 'Actuals': y_val})
 
     # Error Metric for Validation
@@ -717,6 +733,6 @@ def cn_train_and_evaluate(df, frequency='H'):
 def cnn_tune_and_evolve(df, frequency='H'):
     X_train, X_val, X_test, y_train, y_val, y_test = load_data(df, frequency)
 
-    best_model, best_hp = build_and_tune_lstm_model(X_train, y_train, X_val, y_val)
+    best_model, best_hp = build_and_tune_cnn_model(X_train, y_train, X_val, y_val)
 
     return best_model, best_hp

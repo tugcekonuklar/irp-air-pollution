@@ -266,18 +266,18 @@ def get_lstm_best_params(frequency):
             'dropout': True,
         },
         'W': {
-            'learning_rate': 0.002269170549520706,
-            'num_layers': 6,
-            'units': [352, 416, 96, 160, 32, 32],
-            'activations': ['relu', 'relu', 'relu', 'relu', 'relu', 'relu'],
+            'learning_rate': 0.0017202351384356584,
+            'num_layers': 2,
+            'units': [224, 320],
+            'activations': ['tanh', 'relu'],
             'dropout': True,
         },
         'M': {
-            'learning_rate': 0.0015604152272701418,
-            'num_layers': 5,
-            'units': [192, 352, 416, 32, 512],
-            'activations': ['relu', 'relu', 'relu', 'relu', 'relu'],
-            'dropout': True,
+            'learning_rate': 0.001601227482635775,
+            'num_layers': 4,
+            'units': [480, 192, 192, 288],
+            'activations': ['relu', 'relu', 'relu', 'relu'],
+            'dropout': False,
         }
     }
 

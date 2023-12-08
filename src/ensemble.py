@@ -6,7 +6,7 @@ from catboost import CatBoostRegressor
 from scipy.stats import randint as sp_randint, uniform
 from sklearn.decomposition import PCA
 from sklearn.ensemble import GradientBoostingRegressor, HistGradientBoostingRegressor, AdaBoostRegressor, \
-    RandomForestRegressor
+    RandomForestRegressor, VotingRegressor
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import Pipeline
@@ -14,6 +14,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeRegressor
 
 import model_base as mb
+import supervised as sp
 
 GRADIENT_BOOSTING = 'gradient_boosting'
 HISTOGRAM_GRADIENT_BOOSTING = 'histogram_gradient_boosting'
@@ -287,14 +288,6 @@ def get_random_forest_best_params(frequency):
     return best_params.get(frequency, "Invalid frequency")
 
 
-# best_params = {
-#     'max_depth': 21,
-#     'max_features': 'log2',
-#     'min_samples_leaf': 5,
-#     'min_samples_split': 10,
-#     'n_estimators': 266
-# }
-
 def get_gbr_model(frequency):
     best_params = get_gbr_best_params(frequency)
     return ('gbr', GradientBoostingRegressor(learning_rate=best_params['learning_rate'],
@@ -347,41 +340,6 @@ def get_random_forest_model(frequency):
         max_features=best_params['max_features'],
         # random_state=42  # Use a fixed seed for reproducibility
     )
-
-
-# GBR_MODEL = ('gbr', GradientBoostingRegressor(learning_rate=0.1,
-#                                               max_depth=3,
-#                                               min_samples_leaf=3,
-#                                               min_samples_split=6,
-#                                               n_estimators=406))
-# HIST_GBR_MODEL = ('hist_gbr', HistGradientBoostingRegressor(learning_rate=0.04410482473745831,
-#                                                             max_depth=9,
-#                                                             max_iter=373,
-#                                                             min_samples_leaf=23))
-# XGB_MODEL = ('xgb', xgb.XGBRegressor(n_estimators=205,
-#                                      max_depth=8,
-#                                      learning_rate=0.10351332282682328,
-#                                      subsample=0.7838501639099957,
-#                                      colsample_bytree=0.831261142176991,
-#                                      min_child_weight=6))
-# ADA_MODEL = AdaBoostRegressor(DecisionTreeRegressor(max_depth=8),
-#                               learning_rate=0.16297508346206444,
-#                               n_estimators=70)
-
-# CAT_BOOSTING = CatBoostRegressor(
-#     learning_rate=0.1,
-#     l2_leaf_reg=3,
-#     iterations=200,
-#     depth=4)
-
-# RANDOM_FOREST = RandomForestRegressor(
-#     n_estimators=21,
-#     max_depth='log2',
-#     min_samples_leaf=5,
-#     min_samples_split=10,
-#     max_features=266,
-#     # random_state=42  # Use a fixed seed for reproducibility
-# )
 
 
 def get_gb_param_distribution():
@@ -587,26 +545,6 @@ def train_and_evolve(df, ensemble_alg: str, frequency='H'):
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
 
 
-# best_params = {
-#     'max_depth': 21,
-#     'max_features': 'log2',
-#     'min_samples_leaf': 5,
-#     'min_samples_split': 10,
-#     'n_estimators': 266
-# }
-
-
-# def init_random_forest_model():
-#     return RandomForestRegressor(
-#         n_estimators=best_params['n_estimators'],
-#         max_depth=best_params['max_depth'],
-#         min_samples_leaf=best_params['min_samples_leaf'],
-#         min_samples_split=best_params['min_samples_split'],
-#         max_features=best_params['max_features'],
-#         # random_state=42  # Use a fixed seed for reproducibility
-#     )
-
-
 def train_and_evolve_bagging(df, frequency='H'):
     train_data, validation_data, test_data = mb.split_data(df)
     # Extract the features
@@ -621,8 +559,6 @@ def train_and_evolve_bagging(df, frequency='H'):
     # VALIDATION Prediction and Evolution
     y_val_pred = model.predict(X_val)
 
-    #  print(y_val_pred)
-
     # Validation Error Metric
     mb.evolve_error_metrics(y_val, y_val_pred)
     mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
@@ -630,7 +566,56 @@ def train_and_evolve_bagging(df, frequency='H'):
     # TEST Prediction and Evolution
     y_test_pred = model.predict(X_test)
 
-    # print(y_test_pred)
+    # Test Error Metric
+    mb.evolve_error_metrics(y_test, y_test_pred)
+    mb.naive_mean_absolute_scaled_error(y_test, y_test_pred)
+
+    # Plot
+    mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
+    mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
+
+
+def voting_train_and_evolve(df, frequency='H'):
+    train_data, validation_data, test_data = mb.split_data(df)
+    # Extract the features
+    X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
+    # Extract the target variable
+    y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
+    model_gb = init_ensemble_model(GRADIENT_BOOSTING, frequency)
+    model_hist_gb = init_ensemble_model(HISTOGRAM_GRADIENT_BOOSTING, frequency)
+    model_xgb = init_ensemble_model(XGBOOST, frequency)
+    model_ada = init_ensemble_model(ADABOOST, frequency)
+    model_cat = init_ensemble_model(CATBOOST, frequency)
+    model_rf = init_ensemble_model(RANDOMFOREST, frequency)
+    model_svr = sp.init_svr_pipeline(frequency)
+    model_lr = sp.init_linear_model()
+    model_lasso = sp.init_lasso_model_with_random()
+
+    # Create the voting regressor
+    model = VotingRegressor(
+        estimators=[('gb', model_gb),
+                    ('histy_gb', model_hist_gb),
+                    ('xgb', model_xgb),
+                    ('ada', model_ada),
+                    ('cat', model_cat),
+                    ('rf', model_rf),
+                    ('svr', model_svr),
+                    ('lr', model_lr),
+                    ('lasso', model_lasso)
+                    ]
+    )
+
+    model.fit(X_train, y_train)
+
+    # VALIDATION Prediction and Evolution
+    y_val_pred = model.predict(X_val)
+
+    # Validation Error Metric
+    mb.evolve_error_metrics(y_val, y_val_pred)
+    mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
+
+    # TEST Prediction and Evolution
+    y_test_pred = model.predict(X_test)
 
     # Test Error Metric
     mb.evolve_error_metrics(y_test, y_test_pred)

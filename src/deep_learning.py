@@ -1,19 +1,14 @@
-from datetime import datetime
+import random
 
-import keras_tuner
-import numpy as np
 import pandas as pd
-from sklearn.preprocessing import MinMaxScaler
+from kerastuner.tuners import RandomSearch
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.optimizers import Adam
-import model_base as mb
-import keras_tuner
-from kerastuner.tuners import RandomSearch
 from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import load_model
-import random
+
+import model_base as mb
 
 
 def set_index_to_datetime(df, datetime_column_name='Start', datetime_format='%Y-%m-%d %H:%M:%S'):
@@ -736,3 +731,85 @@ def cnn_tune_and_evolve(df, frequency='H'):
     best_model, best_hp = build_and_tune_cnn_model(X_train, y_train, X_val, y_val)
 
     return best_model, best_hp
+
+
+from sklearn.preprocessing import MinMaxScaler
+import numpy as np
+
+
+def cnn_lstm(df):
+    df.index = pd.to_datetime(df['Start'], format='%Y-%m-%d %H:%M:%S')
+    df_ts = df['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value', 'PM2.5-Value']
+    df_ts['Seconds'] = df_ts.index.map(pd.Timestamp.timestamp)
+
+    timestamp_s = df['Seconds']
+
+    # Define constants
+    second = 1
+    minute = 60 * second
+    hour = 60 * minute
+    day = 24 * hour
+    week = 7 * day
+    df['Day sin'] = np.sin(timestamp_s * (2 * np.pi / day))
+    df['Day cos'] = np.cos(timestamp_s * (2 * np.pi / day))
+    df['Week sin'] = np.sin(timestamp_s * (2 * np.pi / week))
+    df['Week cos'] = np.cos(timestamp_s * (2 * np.pi / week))
+
+    df_ts = df_ts.drop('Seconds', axis=1)
+    df = df_ts
+
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(df)
+    window_size = 24
+    df_as_np = scaled_data.to_numpy()
+    X = []
+    y = []
+    for i in range(len(df_as_np) - window_size):
+        row = [r for r in df_as_np[i:i + window_size]]
+        X.append(row)
+        label = [df_as_np[i + window_size][0], df_as_np[i + window_size][1]]
+        y.append(label)
+    X = np.array(X)
+    y = np.array(y)
+
+    train_ratio = 0.6, val_ratio = 0.2
+    n = len(X)
+    X_train, y_train = X[:int(n * train_ratio)], y[:int(n * train_ratio)]
+    X_val, y_val = X[int(n * train_ratio):int(n * (train_ratio + val_ratio))], y[int(n * train_ratio):int(
+        n * (train_ratio + val_ratio))]
+    X_test, y_test = X[int(n * (train_ratio + val_ratio)):], y[int(n * (train_ratio + val_ratio)):]
+
+    preprocessing_summary = {
+        "Total Data Points": len(df),
+        "Training Data Size": len(X_train),
+        "Validation Data Size": len(X_val),
+        "Testing Data Size": len(X_test)
+    }
+
+    print(preprocessing_summary)
+
+    model = Sequential()
+    model.add(layers.InputLayer((X_train.shape[1], X_train.shape[2])))
+    model.add(layers.LSTM(96, 'relu'))
+
+    for i in range(1, 2):
+        model.add(layers.Dense(32, 'relu'))
+
+    model.add(layers.Dropout(rate=0.25))
+
+    model.add(layers.Dense(1, 'linear'))
+
+    optimizer = keras.optimizers.Adam(learning_rate=learning_rate)
+    loss = keras.losses.MeanSquaredError()
+    metrics = [keras.metrics.MeanAbsoluteError()]
+
+    model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
+
+    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10)
+
+    val_predictions = model.predict(X_val).flatten()
+    val_results = pd.DataFrame(data={'Predictions': val_predictions, 'Actuals': y_val})
+
+    # Error Metric for Validation
+    mb.evolve_error_metrics(val_results['Predictions'], val_results['Actuals'])
+    mb.naive_mean_absolute_scaled_error(val_results['Predictions'], val_results['Actuals'])

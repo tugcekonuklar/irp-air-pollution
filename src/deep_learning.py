@@ -772,7 +772,8 @@ def cnn_lstm(df):
     X = np.array(X)
     y = np.array(y)
 
-    train_ratio = 0.6, val_ratio = 0.2
+    train_ratio = 0.6
+    val_ratio = 0.2
     n = len(X)
     X_train, y_train = X[:int(n * train_ratio)], y[:int(n * train_ratio)]
     X_val, y_val = X[int(n * train_ratio):int(n * (train_ratio + val_ratio))], y[int(n * train_ratio):int(

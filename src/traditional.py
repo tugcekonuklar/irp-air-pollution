@@ -1,197 +1,180 @@
-import pmdarima as pm
 import model_base as mb
+import matplotlib.pyplot as plt
+from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
+import pandas as pd
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-from statsmodels.tsa.holtwinters import SimpleExpSmoothing, ExponentialSmoothing
+from sklearn.model_selection import TimeSeriesSplit
+from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
 import numpy as np
-from sklearn.metrics import mean_squared_error
+import itertools
 
-FEATURES = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']
+ALL = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value', 'PM2.5-Value']
 TARGET = 'PM2.5-Value'
 
 
-def init_auto_model(df):
-    X, y = mb.define_target_features(df)
-    return pm.auto_arima(y.values, start_p=1, start_q=1,
-                         test='adf',  # use adftest to find optimal 'd'
-                         max_p=10, max_q=10,  # maximum p and q
-                         m=1,  # frequency of series
-                         d=None,  # let model determine 'd'
-                         seasonal=False,  # No Seasonality
-                         start_P=0,
-                         D=0,
-                         trace=True,
-                         error_action='ignore',
-                         suppress_warnings=True,
-                         stepwise=True,
-                         exogenous=X)
-
-
-def init_arimax_model(df):
-    # seasonal_order=(0, 0, 0, 0 means no seasonal
-    X, y = mb.define_target_features(df)
-    return SARIMAX(y, exog=X, order=(6, 0, 1), seasonal_order=(0, 0, 0, 0))
-
-
-
-def init_exponential_smooting_model(target_df):
-    # return SimpleExpSmoothing(df[TARGET]).fit(smoothing_level=0.2, optimized=False)
-    return ExponentialSmoothing(np.asarray(target_df), trend='add', seasonal_periods=12, seasonal=None,
-                                damped=False, use_boxcox=True).fit()
-
-
-def arimax_train_and_evolve(df):
-    train_data, validation_data, test_data = mb.split_data(df)
-    # Scale the features
-    X_train_scaled, X_val_scaled, X_test_scaled = mb.scale_features(train_data, validation_data, test_data)
-    # Apply PCA on the scaled data
-    pca = mb.init_pca()
-    pca.fit(X_train_scaled)
-    # Transform the datasets using the fitted PCA
-    X_train_pca = pca.fit_transform(X_train_scaled)
-    X_val_pca = pca.transform(X_val_scaled)
-    X_test_pca = pca.transform(X_test_scaled)
-    # Extract the target variable
-    y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-
-    # model creation
-    model = init_arimax_model(df)
-    fitted_model = model.fit()
-
-    # evaluation
-    # Make predictions on the validation set
-    y_val_pred = fitted_model.get_prediction(start=y_val.index[0], end=y_val.index[-1], exog=X_val_pca)
-    val_predictions_mean = y_val_pred.predicted_mean
-
-    print(y_val_pred)
-    print(val_predictions_mean)
-
-    # Error Metric
-    mb.evolve_error_metrics(y_val,val_predictions_mean)
-    mb.naive_mean_absolute_scaled_error(y_val,val_predictions_mean)
-
-    # Predict on the test set
-    y_test_pred = fitted_model.get_prediction(start=y_test.index[0], end=y_test.index[-1], exog=X_test_pca)
-    test_predictions_mean = y_test_pred.predicted_mean
-
-    print(y_val_pred)
-    print(test_predictions_mean)
-
-    # Error Metric
-    mb.evolve_error_metrics(y_test,test_predictions_mean)
-    mb.naive_mean_absolute_scaled_error(y_test,test_predictions_mean)
-
-    mb.plot_pm_true_predict(validation_data, val_predictions_mean, 'Validation')
-    mb.plot_pm_true_predict(test_data, test_predictions_mean, 'Test')
-    # mb.plot_time_series(train_data, y_train, validation_data, y_val, val_predictions_mean, y_val_pred, 'Validation')
-    # mb.plot_time_series(train_data, y_train, test_data, y_test, test_predictions_mean, y_test_pred, 'Test')
-    
-    
-
-def expomnential_smooting_train_and_evolve(df):
-    
-    df = df.resample('H').mean()  # Resample to hourly data if not already
-    df = df.sort_index()
-
-    train_data, validation_data, test_data = mb.split_data(df)
-    # Extract the target variable
-    y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-
-    # model creation
-    model = init_exponential_smooting_model(y_train)
-
-    # evaluation
-    # Make predictions on the validation set
-    y_val_pred = model.forecast(len(y_val))
-
-    print(y_val_pred)
-
-    # Error Metric
-    mb.evolve_error_metrics(y_val,y_val_pred)
-    mb.naive_mean_absolute_scaled_error(y_val,y_val_pred)
-
-    # Predict on the test set
-    y_test_pred = model.forecast(len(y_test))
-
-    print(y_test_pred)
-
-    # Error Metric
-    mb.evolve_error_metrics(y_test,y_test_pred)
-    mb.naive_mean_absolute_scaled_error(y_test,y_test_pred)
-
-    mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
-    mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
-    # mb.plot_time_series(train_data, y_train, validation_data, y_val, val_predictions_mean, y_val_pred, 'Validation')
-    # mb.plot_time_series(train_data, y_train, test_data, y_test, test_predictions_mean, y_test_pred, 'Test')
-    
-    
-from itertools import product
-from statsmodels.tsa.api import ExponentialSmoothing
-
-
-def optimize_exponential_smoothing(df, trend_options=['add', 'mul', None], seasonal_options=['add', 'mul', None], seasonal_periods_options=[12], damped_options=[True, False]):
+def get_arimax_best_params(frequency='H'):
     """
-    Optimize Exponential Smoothing model based on Mean Squared Error.
+    Returns the best parameters for ARIMAX based on the specified frequency.
 
-    :param train_data: Training dataset
-    :param validation_data: Validation dataset
-    :param trend_options: List of trend options
-    :param seasonal_options: List of seasonal options
-    :param seasonal_periods_options: List of seasonal period options
-    :param damped_options: List of damped trend options
-    :return: Best model configuration and its MSE
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
     """
-    
-    df = df.resample('H').mean()  # Resample to hourly data if not already
-    df = df.sort_index()
-    
-    
-    train_data, validation_data, test_data = mb.split_data(df)
-    y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-    
-    # Cartesian product of the hyperparameter grid
-    param_grid = list(product(trend_options, seasonal_options, seasonal_periods_options, damped_options))
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'order': (0, 0, 0),
+            'seasonal_order': (0, 0, 0, 0),
+        },
+        'D': {
+            'order': (6, 0, 1),
+            'seasonal_order': (0, 0, 0, 0),
+        },
+        'W': {
+            'order': (6, 0, 7),
+            'seasonal_order': (0, 0, 0, 0),
+        },
+        'M': {
+            'order': (3, 0, 6),
+            'seasonal_order': (0, 0, 0, 0),
+        }
+    }
 
-    # Keep track of the best configuration and corresponding MSE
-    best_mse = float("inf")
-    best_config = None
-    best_model = None
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
 
-    # Perform grid search
-    for params in param_grid:
-        trend, seasonal, seasonal_periods, damped = params
 
-        # Skip if both trend and seasonal are None
-        if trend is None and seasonal is None:
-            continue
+def plot_pm_true_predict(y_actual, y_pred, name):
+    # Plotting the actual vs predicted values
+    plt.figure(figsize=(15, 5))
 
+    # Actual values - using blue color with a line marker
+    plt.plot(y_actual.index, y_actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
+
+    # Predicted values - using red color with a cross marker
+    plt.plot(y_actual.index, y_pred, color='red', marker='x', label='Predicted', linestyle='None')
+
+    plt.title(f'{name} Set - Actual vs Predicted PM2.5')
+    plt.xlabel('Date')
+    plt.ylabel('PM2.5')
+    plt.legend()
+    plt.grid()
+    plt.show()
+
+
+def split_data(df):
+    data = df[ALL]
+    # Assuming the dataset contains additional features other than PM2.5 values
+    # Standardize the features before applying PCA
+    features = data.drop([TARGET], axis=1)
+    scaler = StandardScaler()
+    features_scaled = scaler.fit_transform(features)
+
+    # Apply PCA to reduce dimensionality
+    pca = PCA(n_components=0.95)  # Retain 95% of the variance
+    principal_components = pca.fit_transform(features_scaled)
+
+    # Add the principal components as new columns to the dataset
+    for i in range(principal_components.shape[1]):
+        data[f'PC{i + 1}'] = principal_components[:, i]
+
+    # Now, use these principal components as exogenous variables in the ARIMAX model
+    pm25_data = data[TARGET]
+    exog_data = data.drop([TARGET], axis=1)
+
+    # # Splitting data into train, validation, and test sets (including exogenous variables)
+    # tscv = TimeSeriesSplit(n_splits=3)
+    #
+    # # Splitting data into train, validation, and test sets using TimeSeriesSplit
+    # splits = list(tscv.split(pm25_data))
+    #
+    # # First split for training
+    # train_index = splits[0][0]
+    # y_train, train_exog = pm25_data.iloc[train_index], exog_data.iloc[train_index]
+    #
+    # # Second split for validation
+    # val_index = splits[1][1]
+    # y_val, val_exog = pm25_data.iloc[val_index], exog_data.iloc[val_index]
+    #
+    # # Third split for testing
+    # test_index = splits[2][1]
+    # y_test, test_exog = pm25_data.iloc[test_index], exog_data.iloc[test_index]
+
+    data_length = len(pm25_data)
+
+    # Calculate indices for 60%, 80% of the data
+    train_end = int(data_length * 0.6)
+    val_end = int(data_length * 0.8)
+
+    # Split the data
+    y_train, train_exog = pm25_data.iloc[:train_end], exog_data.iloc[:train_end]
+    y_val, val_exog = pm25_data.iloc[train_end:val_end], exog_data.iloc[train_end:val_end]
+    y_test, test_exog = pm25_data.iloc[val_end:], exog_data.iloc[val_end:]
+
+    print(f"Training set size: {len(y_train)}")
+    print(f"Validation set size: {len(y_val)}")
+    print(f"Test set size: {len(y_test)}")
+
+    return y_train, train_exog, y_val, val_exog, y_test, test_exog
+
+
+def arimax_train_and_evolve(df, frequency='H'):
+    y_train, train_exog, y_val, val_exog, y_test, test_exog = split_data(df)
+
+    # Fit the ARIMAX model with PCA components as exogenous variables on the training data
+    best_params = get_arimax_best_params(frequency)
+    model = SARIMAX(y_train, exog=train_exog, order=best_params['order'],
+                    seasonal_order=best_params['seasonal_order'])
+    model_fit = model.fit()
+
+    # summary for model fit
+    print("===== Summary ======")
+    print(model_fit.summary())
+
+    print("===== Residuals ======")
+    residuals = pd.DataFrame(model_fit.resid)
+    print(residuals.describe())
+
+    print("===== Evaluation ======")
+    # Make predictions on the validation set
+    val_predictions = model_fit.forecast(steps=len(y_val), exog=val_exog)
+
+    # Error Metric
+    mb.evolve_error_metrics(y_val, val_predictions)
+    mb.naive_mean_absolute_scaled_error(y_val, val_predictions)
+
+    # Make predictions on the test set
+    test_predictions = model_fit.forecast(steps=len(y_test), exog=test_exog)
+
+    # Error Metric
+    mb.evolve_error_metrics(y_test, test_predictions)
+    mb.naive_mean_absolute_scaled_error(y_test, test_predictions)
+
+    plot_pm_true_predict(y_val, val_predictions, 'Validation')
+    plot_pm_true_predict(y_test, test_predictions, 'Test')
+
+
+def tune_arimax(df, max_p=7, max_d=5, max_q=7):
+    best_mae = float('inf')
+    best_params = None
+    y_train, train_exog, y_val, val_exog, y_test, test_exog = split_data(df)
+
+    for p, d, q in itertools.product(range(max_p + 1), range(max_d + 1), range(max_q + 1)):
         try:
-            # Fit the model with the current set of hyperparameters
-            model = ExponentialSmoothing(
-                y_train, 
-                seasonal_periods=seasonal_periods, 
-                trend=trend, 
-                seasonal=seasonal,
-                damped_trend=damped,
-                use_boxcox=True
-            ).fit()
+            print(f'Tuning for p={p}, d={d}, q={q}')
+            model = SARIMAX(y_train, exog=train_exog, order=(p, d, q))
+            model_fit = model.fit(disp=False)
+            val_predictions = model_fit.forecast(steps=len(y_val), exog=val_exog)
+            mae = mean_absolute_error(y_val, val_predictions)
 
-            # Forecast on the validation set
-            val_predictions = model.forecast(len(y_val))
-
-            # Calculate the MSE for this model configuration
-            mse = mean_squared_error(y_val, val_predictions)
-
-            # Check if this configuration gives us a lower MSE than what we've seen so far
-            if mse < best_mse:
-                best_mse = mse
-                best_config = params
-                best_model = model
+            if mae < best_mae:
+                best_mae = mae
+                best_params = {'order': (p, d, q), 'seasonal_order': (0, 0, 0, 0)}
 
         except Exception as e:
-            print(f"Error with configuration {params}: {e}")
+            continue
 
-    # Output the best performing model configuration
-    print(f"Best configuration: Trend: {best_config[0]}, Seasonal: {best_config[1]}, Seasonal Periods: {best_config[2]}, Damped: {best_config[3]}")
-    print(f"Best MSE: {best_mse}")
-
-    return best_model, best_mse
+    return best_params

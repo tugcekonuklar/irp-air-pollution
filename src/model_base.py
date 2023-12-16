@@ -265,9 +265,9 @@ def set_start_index(df, index_col):
 
 def define_target_features(df):
     # Separate the features and target
-    x = df[FEATURES]
+    X = df[FEATURES]
     y = df[TARGET]
-    return x, y
+    return y, X
 
 
 def extract_target(train_data, validation_data, test_data):

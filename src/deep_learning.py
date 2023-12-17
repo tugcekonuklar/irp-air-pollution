@@ -245,52 +245,6 @@ def get_ann_best_params(frequency='H'):
     return best_params.get(frequency, "Invalid frequency")
 
 
-def get_lstm_best_params(frequency):
-    """
-    Returns the best parameters for LSTM based on the specified frequency.
-
-    Args:
-    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
-
-    Returns:
-    - dict: A dictionary of the best parameters.
-    """
-    # Define best parameters for each frequency
-    best_params = {
-        'H': {
-            'learning_rate': 0.0017115621539278423,
-            'num_layers': 6,
-            'units': [64, 384, 480, 160, 32, 32],
-            'activations': ['relu', 'relu', 'relu', 'relu', 'relu', 'relu'],
-            'dropout': False,
-        },
-        'D': {
-            'learning_rate': 0.002830345538814358,
-            'num_layers': 5,
-            'units': [96, 288, 256, 448, 384],
-            'activations': ['relu', 'relu', 'relu', 'relu', 'relu'],
-            'dropout': True,
-        },
-        'W': {
-            'learning_rate': 0.0017202351384356584,
-            'num_layers': 2,
-            'units': [224, 320],
-            'activations': ['tanh', 'relu'],
-            'dropout': True,
-        },
-        'M': {
-            'learning_rate': 0.001601227482635775,
-            'num_layers': 4,
-            'units': [480, 192, 192, 288],
-            'activations': ['relu', 'relu', 'relu', 'relu'],
-            'dropout': False,
-        }
-    }
-
-    # Return the best parameters for the specified frequency
-    return best_params.get(frequency, "Invalid frequency")
-
-
 ## ANN
 def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10, frequency='H'):
     """
@@ -418,6 +372,53 @@ def ann_tune_and_evolve(df, frequency='H'):
 
 
 ## LSTM
+
+def get_lstm_best_params(frequency):
+    """
+    Returns the best parameters for LSTM based on the specified frequency.
+
+    Args:
+    - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
+
+    Returns:
+    - dict: A dictionary of the best parameters.
+    """
+    # Define best parameters for each frequency
+    best_params = {
+        'H': {
+            'learning_rate': 0.0017115621539278423,
+            'num_layers': 6,
+            'units': [64, 384, 480, 160, 32, 32],
+            'activations': ['relu', 'relu', 'relu', 'relu', 'relu', 'relu'],
+            'dropout': False,
+        },
+        'D': {
+            'learning_rate': 0.002830345538814358,
+            'num_layers': 5,
+            'units': [96, 288, 256, 448, 384],
+            'activations': ['relu', 'relu', 'relu', 'relu', 'relu'],
+            'dropout': True,
+        },
+        'W': {
+            'learning_rate': 0.0017202351384356584,
+            'num_layers': 2,
+            'units': [224, 320],
+            'activations': ['tanh', 'relu'],
+            'dropout': True,
+        },
+        'M': {
+            'learning_rate': 0.001601227482635775,
+            'num_layers': 4,
+            'units': [480, 192, 192, 288],
+            'activations': ['relu', 'relu', 'relu', 'relu'],
+            'dropout': False,
+        }
+    }
+
+    # Return the best parameters for the specified frequency
+    return best_params.get(frequency, "Invalid frequency")
+
+
 def build_and_tune_lstm_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10, frequency='H'):
     """
     Build and tune an LSTM model using Keras Tuner.

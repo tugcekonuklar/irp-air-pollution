@@ -177,6 +177,8 @@ def process_and_save_freq_data(date_file_path, timestamp_file_path, resample='D'
     df['Start'] = pd.to_datetime(df['Start'])
     df = df.set_index('Start')
 
+    df = df.drop(columns=['PM2.5-Unit', 'PM10-Unit', 'NO2-Unit', 'O3-Unit', 'SO2-Unit'])
+
     # Resample data and take the median
     df_resample = df.resample(resample).median()
 

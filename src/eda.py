@@ -403,7 +403,7 @@ def correlation_matrix(df, figsize=(20, 8), cmap='coolwarm', title="Correlation 
     if df.empty:
         raise ValueError("DataFrame is empty")
 
-    correlation_matrix = df.corr()
+    correlation_matrix = df.corr(numeric_only=True)
     plt.figure(figsize=figsize)
     sns.heatmap(correlation_matrix, annot=True, cmap=cmap)
     plt.title(title)

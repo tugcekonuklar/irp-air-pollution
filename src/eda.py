@@ -492,3 +492,17 @@ def analyse_data_frame(df):
     else:
         print("Seasonality and Trend Analysis Results:")
         print(result_df)
+
+def plot_feature_distribution(df, figsize=(15, 12), bins=15, title="Features Distribution"):
+    """
+    Plots the distribution of all features in the DataFrame.
+
+    Args:
+    - df (pd.DataFrame): DataFrame containing the features to be plotted.
+    - figsize (tuple): Size of the figure (width, height).
+    - bins (int): Number of bins to use for histograms.
+    - title (str): Title of the plot.
+    """
+    df.hist(figsize=figsize, bins=bins)
+    plt.title(title)
+    plt.show()

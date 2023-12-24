@@ -7,8 +7,20 @@ from tensorflow.keras import layers
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import load_model
+import matplotlib.pyplot as plt
 
 import model_base as mb
+
+
+def plot_actual_vs_predicted(actual, pred, title='Actual vs Predicted Values', xlabel='Time', ylabel='Values'):
+    plt.figure(figsize=(15, 8))
+    plt.plot(actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
+    plt.plot(pred, color='red', marker='x', label='Predicted', linestyle='None')
+    plt.title(title)
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
+    plt.legend()
+    plt.show()
 
 
 def set_index_to_datetime(df, frequency='H', datetime_column_name='Start', datetime_format='%Y-%m-%d %H:%M:%S'):
@@ -277,7 +289,7 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
         model.add(layers.Dense(1, activation="linear"))
         learning_rate = hp.Float("lr", min_value=1e-4, max_value=1e-2, sampling="log")
         model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+            optimizer=keras.optimizers.legacy.Adam(learning_rate=learning_rate),
             loss="mean_squared_error",
             metrics=[keras.metrics.MeanAbsoluteError()],
         )
@@ -459,7 +471,7 @@ def build_and_tune_lstm_model(X_train, y_train, X_val, y_val, max_trials=5, num_
         model.add(layers.Dense(1, activation="linear"))
         learning_rate = hp.Float("lr", min_value=1e-4, max_value=1e-2, sampling="log")
         model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+            optimizer=keras.optimizers.legacy.Adam(learning_rate=learning_rate),
             loss="mean_squared_error",
             metrics=[keras.metrics.MeanAbsoluteError()],
         )
@@ -641,7 +653,7 @@ def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
         model.add(layers.Dense(1, activation="linear"))
         learning_rate = hp.Float("lr", min_value=1e-4, max_value=1e-2, sampling="log")
         model.compile(
-            optimizer=keras.optimizers.Adam(learning_rate=learning_rate),
+            optimizer=keras.optimizers.legacy.Adam(learning_rate=learning_rate),
             loss="mean_squared_error",
             metrics=[keras.metrics.MeanAbsoluteError()],
         )
@@ -734,85 +746,156 @@ def cnn_tune_and_evolve(df, frequency='H'):
 
     return best_model, best_hp
 
-#
-# from sklearn.preprocessing import MinMaxScaler
-# import numpy as np
-#
-#
-# def cnn_lstm(df):
-#     df.index = pd.to_datetime(df['Start'], format='%Y-%m-%d %H:%M:%S')
-#     df_ts = df['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value', 'PM2.5-Value']
-#     df_ts['Seconds'] = df_ts.index.map(pd.Timestamp.timestamp)
-#
-#     timestamp_s = df['Seconds']
-#
-#     # Define constants
-#     second = 1
-#     minute = 60 * second
-#     hour = 60 * minute
-#     day = 24 * hour
-#     week = 7 * day
-#     df['Day sin'] = np.sin(timestamp_s * (2 * np.pi / day))
-#     df['Day cos'] = np.cos(timestamp_s * (2 * np.pi / day))
-#     df['Week sin'] = np.sin(timestamp_s * (2 * np.pi / week))
-#     df['Week cos'] = np.cos(timestamp_s * (2 * np.pi / week))
-#
-#     df_ts = df_ts.drop('Seconds', axis=1)
-#     df = df_ts
-#
-#     scaler = MinMaxScaler(feature_range=(0, 1))
-#     scaled_data = scaler.fit_transform(df)
-#     window_size = 24
-#     df_as_np = scaled_data.to_numpy()
-#     X = []
-#     y = []
-#     for i in range(len(df_as_np) - window_size):
-#         row = [r for r in df_as_np[i:i + window_size]]
-#         X.append(row)
-#         label = [df_as_np[i + window_size][0], df_as_np[i + window_size][1]]
-#         y.append(label)
-#     X = np.array(X)
-#     y = np.array(y)
-#
-#     train_ratio = 0.6
-#     val_ratio = 0.2
-#     n = len(X)
-#     X_train, y_train = X[:int(n * train_ratio)], y[:int(n * train_ratio)]
-#     X_val, y_val = X[int(n * train_ratio):int(n * (train_ratio + val_ratio))], y[int(n * train_ratio):int(
-#         n * (train_ratio + val_ratio))]
-#     X_test, y_test = X[int(n * (train_ratio + val_ratio)):], y[int(n * (train_ratio + val_ratio)):]
-#
-#     preprocessing_summary = {
-#         "Total Data Points": len(df),
-#         "Training Data Size": len(X_train),
-#         "Validation Data Size": len(X_val),
-#         "Testing Data Size": len(X_test)
-#     }
-#
-#     print(preprocessing_summary)
-#
-#     model = Sequential()
-#     model.add(layers.InputLayer((X_train.shape[1], X_train.shape[2])))
-#     model.add(layers.LSTM(96, 'relu'))
-#
-#     for i in range(1, 2):
-#         model.add(layers.Dense(32, 'relu'))
-#
-#     model.add(layers.Dropout(rate=0.25))
-#
-#     model.add(layers.Dense(1, 'linear'))
-#
-#     optimizer = keras.optimizers.legacy.Adam(learning_rate=learning_rate)
-#     loss = keras.losses.MeanSquaredError()
-#     metrics = [keras.metrics.MeanAbsoluteError()]
-#
-#     model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
-#
-#     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10)
-#
-#     val_predictions = model.predict(X_val).flatten()
-#     val_results = pd.DataFrame(data={'Predictions': val_predictions, 'Actuals': y_val})
-#
-#     # Error Metric for Validation
-#     mb.evolve_error_metrics(val_results['Predictions'], val_results['Actuals'])
-#     mb.naive_mean_absolute_scaled_error(val_results['Predictions'], val_results['Actuals'])
+
+from sklearn.preprocessing import MinMaxScaler
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+def cnn_lstm(df):
+    print(len(df))
+    # df.index = pd.to_datetime(df['Start'], format='%Y-%m-%d %H:%M:%S')
+    df.index = pd.to_datetime(df['Start'], format='%Y-%m-%d')
+    df_ts = df[['PM2.5-Value', 'NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']]
+    df_ts['Seconds'] = df_ts.index.map(pd.Timestamp.timestamp)
+
+    timestamp_s = df_ts['Seconds']
+
+    # Define constants
+    second = 1
+    minute = 60 * second
+    hour = 60 * minute
+    day = 24 * hour
+    week = 7 * day
+    year = (365.2425) * day
+    month = (30.44) * day  # Average number of days in a month
+    # df_ts['Day sin'] = np.sin(timestamp_s * (2 * np.pi / day))
+    # df_ts['Day cos'] = np.cos(timestamp_s * (2 * np.pi / day))
+    # df_ts['Hour sin'] = np.sin(timestamp_s * (2 * np.pi / hour))
+    # df_ts['Hour cos'] = np.cos(timestamp_s * (2 * np.pi / hour))
+    # df_ts['Week sin'] = np.sin(timestamp_s * (2 * np.pi / week))
+    # df_ts['Week cos'] = np.cos(timestamp_s * (2 * np.pi / week))
+    df_ts['Month sin'] = np.sin(timestamp_s * (2 * np.pi / month))
+    df_ts['Month cos'] = np.cos(timestamp_s * (2 * np.pi / month))
+    df_ts['Year sin'] = np.sin(timestamp_s * (2 * np.pi / year))
+    df_ts['Year cos'] = np.cos(timestamp_s * (2 * np.pi / year))
+
+    df_ts = df_ts.drop('Seconds', axis=1)
+    df_new = df_ts
+
+    print(df_new.info())
+
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(df_new)
+    print(scaled_data.shape)
+
+    # Function to create time series windows
+    def create_windows(data, window_size):
+        X, y = [], []
+        for i in range(len(data) - window_size - 1):
+            X.append(data[i:(i + window_size), :])
+            y.append(data[i + window_size, :])
+        return np.array(X), np.array(y)
+
+
+    window_size = 6
+    X, y = create_windows(scaled_data, window_size)
+    print(X.shape)
+
+    train_size = int(len(X) * 0.6)  # 60% of the data for training
+    validation_size = int(len(X) * 0.2)  # 20% of the data for validation
+    test_size = len(X) - train_size - validation_size  # Remaining 20% for testing
+
+    X_train, y_train = X[:train_size], y[:train_size]
+    X_val, y_val = X[train_size:train_size + validation_size], y[train_size:train_size + validation_size]
+    X_test, y_test = X[train_size + validation_size:], y[train_size + validation_size:]
+
+    # Now X_train, y_train are for training; X_val, y_val are for validation; X_test, y_test are for testing
+
+    preprocessing_summary = {
+        "Total Data Points": len(df_new),
+        "Training Data Size": len(X_train),
+        "Validation Data Size": len(X_val),
+        "Testing Data Size": len(X_test)
+    }
+
+    print(preprocessing_summary)
+
+    print(X_train.shape)
+    print(X_val.shape)
+    print(X_test.shape)
+    print(y_train.shape)
+    print(y_val.shape)
+    print(y_test.shape)
+
+    model = Sequential()
+    # model.add(layers.InputLayer((X_train.shape[1], X_train.shape[2])))
+    model.add(layers.Flatten())
+    model.add(layers.Dense(64, 'relu'))
+    model.add(layers.Dense(32, 'relu'))
+    model.add(layers.Dense(y_train.shape[1], 'linear'))
+
+    optimizer = keras.optimizers.legacy.Adam(learning_rate=0.001)
+    loss = keras.losses.MeanSquaredError()
+    metrics = [keras.metrics.MeanAbsoluteError()]
+
+    model.compile(loss=loss, optimizer=optimizer, metrics=metrics)
+
+    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10)
+
+    val_predictions = model.predict(X_val)
+
+    # Converting predictions back to original scale
+    predicted = scaler.inverse_transform(val_predictions)
+    y_val_inverse = scaler.inverse_transform(y_val)
+
+    print(predicted.shape)
+
+    actual = y_val_inverse[:, 0]
+    pred = predicted[:, 0]
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
+    plt.plot(pred, color='red', marker='x', label='Predicted', linestyle='None')
+    plt.title('Actual vs Predicted Values')
+    plt.xlabel('Time')
+    plt.ylabel('Values')
+    plt.legend()
+    plt.show()
+
+    # Error Metric for Validation
+    mb.evolve_error_metrics(pred, actual)
+    mb.naive_mean_absolute_scaled_error(pred, actual)
+
+    actual = y_val_inverse[:, 1]
+    pred = predicted[:, 1]
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
+    plt.plot(pred, color='red', marker='x', label='Predicted', linestyle='None')
+    plt.title('Actual vs Predicted Values')
+    plt.xlabel('Time')
+    plt.ylabel('Values')
+    plt.legend()
+    plt.show()
+
+    # Error Metric for Validation
+    mb.evolve_error_metrics(pred, actual)
+    mb.naive_mean_absolute_scaled_error(pred, actual)
+
+
+    actual = y_val_inverse[:, 2]
+    pred = predicted[:, 2]
+
+    plt.figure(figsize=(12, 6))
+    plt.plot(actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
+    plt.plot(pred, color='red', marker='x', label='Predicted', linestyle='None')
+    plt.title('Actual vs Predicted Values')
+    plt.xlabel('Time')
+    plt.ylabel('Values')
+    plt.legend()
+    plt.show()
+
+    # Error Metric for Validation
+    mb.evolve_error_metrics(pred, actual)
+    mb.naive_mean_absolute_scaled_error(pred, actual)

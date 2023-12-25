@@ -83,24 +83,6 @@ def split_data(df):
     pm25_data = data[TARGET]
     exog_data = data.drop([TARGET], axis=1)
 
-    # # Splitting data into train, validation, and test sets (including exogenous variables)
-    # tscv = TimeSeriesSplit(n_splits=3)
-    #
-    # # Splitting data into train, validation, and test sets using TimeSeriesSplit
-    # splits = list(tscv.split(pm25_data))
-    #
-    # # First split for training
-    # train_index = splits[0][0]
-    # y_train, train_exog = pm25_data.iloc[train_index], exog_data.iloc[train_index]
-    #
-    # # Second split for validation
-    # val_index = splits[1][1]
-    # y_val, val_exog = pm25_data.iloc[val_index], exog_data.iloc[val_index]
-    #
-    # # Third split for testing
-    # test_index = splits[2][1]
-    # y_test, test_exog = pm25_data.iloc[test_index], exog_data.iloc[test_index]
-
     data_length = len(pm25_data)
 
     # Calculate indices for 60%, 80% of the data

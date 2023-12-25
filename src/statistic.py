@@ -4,9 +4,7 @@ from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-from sklearn.model_selection import TimeSeriesSplit
 from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
-import numpy as np
 import itertools
 
 ALL = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value', 'PM2.5-Value']

@@ -512,7 +512,7 @@ def build_and_tune_lstm_model(X_train, y_train, X_val, y_val, max_trials=5, num_
     return best_model, best_hp
 
 
-def build_best_lstm_model(X_train, learning_rate=0.0004489034857354316, num_layers=3, units=[320, 32, 32],
+def build_best_lstm_model(X_train, y_train, learning_rate=0.0004489034857354316, num_layers=3, units=[320, 32, 32],
                           activations=['relu', 'relu', 'relu'], dropout=False):
     model = Sequential()
     model.add(layers.InputLayer((X_train.shape[1], X_train.shape[2])))
@@ -524,7 +524,7 @@ def build_best_lstm_model(X_train, learning_rate=0.0004489034857354316, num_laye
     if dropout:
         model.add(layers.Dropout(rate=0.25))
 
-    model.add(layers.Dense(1, 'linear'))
+    model.add(layers.Dense(y_train.shape[1], 'linear'))
 
     optimizer = keras.optimizers.legacy.Adam(learning_rate=learning_rate)
     loss = keras.losses.MeanSquaredError()
@@ -540,37 +540,46 @@ def lstm_train_and_evaluate(df, frequency='H'):
     best_params = get_lstm_best_params(frequency)
     print(best_params)
 
-    model = build_best_lstm_model(X_train, learning_rate=best_params['learning_rate'],
+    model = build_best_lstm_model(X_train, y_train, learning_rate=best_params['learning_rate'],
                                   num_layers=best_params['num_layers'],
                                   units=best_params['units'],
                                   activations=best_params['activations'],
                                   dropout=best_params['dropout'])
-    rd_num = random.randint(1, 100)
+
     cp = ModelCheckpoint(f'lstm_model_{frequency}/', save_best_only=True)
     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
 
     model = load_model(f'lstm_model_{frequency}/')
+
     # Validation
-    val_predictions = model.predict(X_val).flatten()
-    val_results = pd.DataFrame(data={'Predictions': val_predictions, 'Actuals': y_val})
+    val_predictions = model.predict(X_val)
+
+    # Converting predictions back to original scale
+    val_predicted = scaler.inverse_transform(val_predictions)
+    y_val_inverse = scaler.inverse_transform(y_val)
+
+    val_actual = y_val_inverse[:, 0]
+    val_pred = val_predicted[:, 0]
+    plot_actual_vs_predicted(val_actual, val_pred, "Validation")
 
     # Error Metric for Validation
-    mb.evolve_error_metrics(val_results['Predictions'], val_results['Actuals'])
-    mb.naive_mean_absolute_scaled_error(val_results['Predictions'], val_results['Actuals'])
+    mb.evolve_error_metrics(val_pred, val_actual)
+    mb.naive_mean_absolute_scaled_error(val_pred, val_actual)
 
     # Test
-    test_predictions = model.predict(X_test).flatten()
-    test_results = pd.DataFrame(data={'Predictions': test_predictions, 'Actuals': y_test})
+    test_predictions = model.predict(X_test)
 
-    # Error Metric for Test
-    mb.evolve_error_metrics(test_results['Predictions'], test_results['Actuals'])
-    mb.naive_mean_absolute_scaled_error(test_results['Predictions'], test_results['Actuals'])
+    # Converting predictions back to original scale
+    test_predicted = scaler.inverse_transform(test_predictions)
+    y_test_inverse = scaler.inverse_transform(y_test)
 
-    # Plot Validation
-    mb.plot_pm_true_predict_dl(val_results['Actuals'], val_results['Predictions'], 'Validation')
+    test_actual = y_test_inverse[:, 0]
+    test_pred = test_predicted[:, 0]
+    plot_actual_vs_predicted(test_actual, test_pred, "Test")
 
-    # Plot Test
-    mb.plot_pm_true_predict_dl(test_results['Actuals'], test_results['Predictions'], 'Test')
+    # Error Metric for Validation
+    mb.evolve_error_metrics(test_pred, test_actual)
+    mb.naive_mean_absolute_scaled_error(test_pred, test_actual)
 
 
 def lstm_tune_and_evolve(df, frequency='H'):
@@ -695,8 +704,9 @@ def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
     return best_model, best_hp
 
 
-def build_best_cnn_model(X_train, learning_rate=0.0004489034857354316, num_layers=3, units=[64, 32, 32],
+def build_best_cnn_model(X_train, y_train, learning_rate=0.0004489034857354316, num_layers=3, units=[64, 32, 32],
                          activations=['relu', 'relu', 'relu', 'relu'], dropout=False):
+    shape = y_train.shape[1]
     model = Sequential()
     model.add(layers.InputLayer((X_train.shape[1], X_train.shape[2])))
     model.add(layers.Conv1D(units[0], kernel_size=2, activation=activations[0]))
@@ -707,7 +717,7 @@ def build_best_cnn_model(X_train, learning_rate=0.0004489034857354316, num_layer
     if dropout:
         model.add(layers.Dropout(rate=0.25))
 
-    model.add(layers.Dense(1, 'linear'))
+    model.add(layers.Dense(shape, 'linear'))
 
     optimizer = keras.optimizers.legacy.Adam(learning_rate=learning_rate)
     loss = keras.losses.MeanSquaredError()
@@ -723,40 +733,47 @@ def cnn_train_and_evaluate(df, frequency='H'):
     best_params = get_cnn_best_params(frequency)
     print(best_params)
 
-    model = build_best_cnn_model(X_train,
+    model = build_best_cnn_model(X_train, y_train,
                                  learning_rate=best_params['learning_rate'],
                                  num_layers=best_params['num_layers'],
                                  units=best_params['units'],
                                  activations=best_params['activations'],
                                  dropout=best_params['dropout'])
 
-    rd_num = random.randint(1, 100)
     cp = ModelCheckpoint(f'cnn_model_{frequency}/', save_best_only=True)
     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
 
     model = load_model(f'cnn_model_{frequency}/')
-    # Validation
-    val_predictions = model.predict(X_val).flatten()
 
-    val_results = pd.DataFrame(data={'Predictions': val_predictions, 'Actuals': y_val})
+    # Validation
+    val_predictions = model.predict(X_val)
+
+    # Converting predictions back to original scale
+    val_predicted = scaler.inverse_transform(val_predictions)
+    y_val_inverse = scaler.inverse_transform(y_val)
+
+    val_actual = y_val_inverse[:, 0]
+    val_pred = val_predicted[:, 0]
+    plot_actual_vs_predicted(val_actual, val_pred, "Validation")
 
     # Error Metric for Validation
-    mb.evolve_error_metrics(val_results['Predictions'], val_results['Actuals'])
-    mb.naive_mean_absolute_scaled_error(val_results['Predictions'], val_results['Actuals'])
+    mb.evolve_error_metrics(val_pred, val_actual)
+    mb.naive_mean_absolute_scaled_error(val_pred, val_actual)
 
     # Test
-    test_predictions = model.predict(X_test).flatten()
-    test_results = pd.DataFrame(data={'Predictions': test_predictions, 'Actuals': y_test})
+    test_predictions = model.predict(X_test)
 
-    # Error Metric for Test
-    mb.evolve_error_metrics(test_results['Predictions'], test_results['Actuals'])
-    mb.naive_mean_absolute_scaled_error(test_results['Predictions'], test_results['Actuals'])
+    # Converting predictions back to original scale
+    test_predicted = scaler.inverse_transform(test_predictions)
+    y_test_inverse = scaler.inverse_transform(y_test)
 
-    # Plot Validation
-    mb.plot_pm_true_predict_dl(val_results['Actuals'], val_results['Predictions'], 'Validation')
+    test_actual = y_test_inverse[:, 0]
+    test_pred = test_predicted[:, 0]
+    plot_actual_vs_predicted(test_actual, test_pred, "Test")
 
-    # Plot Test
-    mb.plot_pm_true_predict_dl(test_results['Actuals'], test_results['Predictions'], 'Test')
+    # Error Metric for Validation
+    mb.evolve_error_metrics(test_pred, test_actual)
+    mb.naive_mean_absolute_scaled_error(test_pred, test_actual)
 
 
 def cnn_tune_and_evolve(df, frequency='H'):

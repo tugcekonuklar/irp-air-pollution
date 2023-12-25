@@ -1,22 +1,26 @@
 import random
 
+import keras_tuner
 import pandas as pd
-from kerastuner.tuners import RandomSearch
+from kerastuner.tuners import RandomSearch, BayesianOptimization
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import load_model
+from sklearn.preprocessing import MinMaxScaler
+import numpy as np
 import matplotlib.pyplot as plt
 
 import model_base as mb
 
 
-def plot_actual_vs_predicted(actual, pred, title='Actual vs Predicted Values', xlabel='Time', ylabel='Values'):
+def plot_actual_vs_predicted(actual, pred, name='Name', title='Actual vs Predicted Values', xlabel='Time',
+                             ylabel='Values'):
     plt.figure(figsize=(15, 8))
     plt.plot(actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
     plt.plot(pred, color='red', marker='x', label='Predicted', linestyle='None')
-    plt.title(title)
+    plt.title(f'{name}-{title}')
     plt.xlabel(xlabel)
     plt.ylabel(ylabel)
     plt.legend()
@@ -112,7 +116,7 @@ def add_time_features(df, datetime_column_name='Seconds', frequency='H'):
 
 
 def preprocess_time_series(df, frequency='H',
-                           columns=['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value', 'PM2.5-Value']):
+                           columns=['PM2.5-Value', 'NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value']):
     """
     Preprocess a DataFrame with time series data.
 
@@ -170,45 +174,53 @@ def preprocess_and_normalize_data(df, window_size=24, train_ratio=0.6, val_ratio
     return X_train_norm, X_val_norm, X_test_norm, y_train, y_val, y_test
 
 
-def ann_split_data(df):
-    """
-    Preprocess and normalize time series data.
+def create_windows(data, window_size=24):
+    X, y = [], []
+    for i in range(len(data) - window_size - 1):
+        X.append(data[i:(i + window_size), :])
+        y.append(data[i + window_size, :])
+    return np.array(X), np.array(y)
 
-    Parameters:
-        df (DataFrame): The DataFrame containing the time series data.
-        train_ratio (float): The ratio of data used for training.
-        val_ratio (float): The ratio of data used for validation.
 
-    Returns:
-        numpy.ndarray: Normalized training data.
-        numpy.ndarray: Normalized validation data.
-        numpy.ndarray: Normalized testing data.
-        numpy.ndarray: Corresponding training labels.
-        numpy.ndarray: Corresponding validation labels.
-        numpy.ndarray: Corresponding testing labels.
-    """
+def preprocess_and_scale_data(df, window_size=24, train_ratio=0.6, val_ratio=0.2):
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(df)
 
-    train_data, validation_data, test_data = mb.split_data(df)
-    # Extract the features
-    # Normalize the features
-    X_train_norm, X_val_norm, X_test_norm = mb.scale_features(train_data, validation_data, test_data, MinMaxScaler())
-    # Extract the target variable
-    y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
+    X, y = create_windows(scaled_data, window_size=window_size)
 
-    return X_train_norm, X_val_norm, X_test_norm, y_train, y_val, y_test
+    train_size = int(len(X) * train_ratio)  # 60% of the data for training
+    validation_size = int(len(X) * val_ratio)  # 20% of the data for validation
+    test_size = len(X) - train_size - validation_size  # Remaining 20% for testing
 
+    X_train, y_train = X[:train_size], y[:train_size]
+    X_val, y_val = X[train_size:train_size + validation_size], y[train_size:train_size + validation_size]
+    X_test, y_test = X[train_size + validation_size:], y[train_size + validation_size:]
+
+    # Now X_train, y_train are for training; X_val, y_val are for validation; X_test, y_test are for testing
+
+    preprocessing_summary = {
+        "Total Data Points": len(df),
+        "Training Data Size": len(X_train),
+        "Validation Data Size": len(X_val),
+        "Testing Data Size": len(X_test)
+    }
+
+    print(preprocessing_summary)
+
+    return X_train, X_val, X_test, y_train, y_val, y_test, scaler
+
+
+# def load_data(df, frequency='H'):
+#     window_size = {'H': 24, 'D': 30, 'W': 24, 'M': 6}
+#     df = set_index_to_datetime(df, frequency)
+#     df = preprocess_time_series(df, frequency)
+#     return preprocess_and_normalize_data(df, window_size=window_size[frequency])
 
 def load_data(df, frequency='H'):
-    window_size = {'H': 24, 'D': 30, 'W': 24, 'M': 6}
+    window_size = {'H': 24, 'D': 30, 'W': 52, 'M': 12}
     df = set_index_to_datetime(df, frequency)
     df = preprocess_time_series(df, frequency)
-    return preprocess_and_normalize_data(df, window_size=window_size[frequency])
-
-
-def ann_load_data(df, frequency='H'):
-    df = set_index_to_datetime(df)
-    df = preprocess_time_series(df, frequency)
-    return ann_split_data(df)
+    return preprocess_and_scale_data(df, window_size=window_size[frequency])
 
 
 def get_ann_best_params(frequency='H'):
@@ -245,10 +257,10 @@ def get_ann_best_params(frequency='H'):
             'dropout': False,
         },
         'M': {
-            'learning_rate': 0.003908373550672397,
-            'num_layers': 2,
-            'units': [160, 384, 224, 32],
-            'activations': ['tanh', 'tanh', 'tanh', 'tanh'],
+            'learning_rate': 0.000889004387467539,
+            'num_layers': 5,
+            'units': [288, 64, 320, 320, 448],
+            'activations': ['relu', 'relu', 'relu', 'relu', 'relu'],
             'dropout': False,
         }
     }
@@ -273,6 +285,7 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
     Returns:
         tensorflow.keras.models.Sequential: The best-tuned LSTM model.
     """
+    shape = y_train.shape[1]
 
     def build_ann_model(hp):
         model = keras.Sequential()
@@ -286,18 +299,18 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
             )
         if hp.Boolean("dropout"):
             model.add(layers.Dropout(rate=0.25))
-        model.add(layers.Dense(1, activation="linear"))
+        model.add(layers.Dense(shape, activation="linear"))
         learning_rate = hp.Float("lr", min_value=1e-4, max_value=1e-2, sampling="log")
         model.compile(
             optimizer=keras.optimizers.legacy.Adam(learning_rate=learning_rate),
             loss="mean_squared_error",
-            metrics=[keras.metrics.MeanAbsoluteError()],
+            metrics=[keras.metrics.RootMeanSquaredError()],
         )
         return model
 
-    tuner = RandomSearch(
+    tuner = BayesianOptimization(
         hypermodel=build_ann_model,
-        objective="val_mean_absolute_error",
+        objective=keras_tuner.Objective('val_root_mean_squared_error', direction='min'),
         max_trials=max_trials,
         directory="my_dir",
         project_name=f"ann_tuning_{random.randint(1, 100)}",
@@ -311,7 +324,7 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
     return best_model, best_hp
 
 
-def build_best_ann_model(learning_rate=0.0004489034857354316, num_layers=3, units=[320, 32, 32],
+def build_best_ann_model(y_train, learning_rate=0.0004489034857354316, num_layers=3, units=[320, 32, 32],
                          activations=['relu', 'relu', 'relu'], dropout=False):
     model = Sequential()
     model.add(layers.Flatten())
@@ -320,7 +333,7 @@ def build_best_ann_model(learning_rate=0.0004489034857354316, num_layers=3, unit
     if dropout:
         model.add(layers.Dropout(rate=0.25))
 
-    model.add(layers.Dense(1, 'linear'))
+    model.add(layers.Dense(y_train.shape[1], 'linear'))
 
     optimizer = keras.optimizers.legacy.Adam(learning_rate=learning_rate)
     loss = keras.losses.MeanSquaredError()
@@ -331,19 +344,17 @@ def build_best_ann_model(learning_rate=0.0004489034857354316, num_layers=3, unit
 
 
 def ann_train_and_evaluate(df, frequency='H'):
-    X_train, X_val, X_test, y_train, y_val, y_test = load_data(df, frequency)
-    # X_train, X_val, X_test, y_train, y_val, y_test = ann_load_data(df, frequency)
+    X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_params = get_ann_best_params(frequency)
     print(best_params)
 
-    model = build_best_ann_model(learning_rate=best_params['learning_rate'],
+    model = build_best_ann_model(y_train, learning_rate=best_params['learning_rate'],
                                  num_layers=best_params['num_layers'],
                                  units=best_params['units'],
                                  activations=best_params['activations'],
                                  dropout=best_params['dropout'])
 
-    rd_num = random.randint(1, 100)
     cp = ModelCheckpoint(f'ann_model_{frequency}/', save_best_only=True)
     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
 
@@ -352,31 +363,38 @@ def ann_train_and_evaluate(df, frequency='H'):
     print(model.summary())
 
     # Validation
-    val_predictions = model.predict(X_val).flatten()
+    val_predictions = model.predict(X_val)
 
-    val_results = pd.DataFrame(data={'Predictions': val_predictions, 'Actuals': y_val})
+    # Converting predictions back to original scale
+    val_predicted = scaler.inverse_transform(val_predictions)
+    y_val_inverse = scaler.inverse_transform(y_val)
+
+    val_actual = y_val_inverse[:, 0]
+    val_pred = val_predicted[:, 0]
+    plot_actual_vs_predicted(val_actual, val_pred, "Validation")
 
     # Error Metric for Validation
-    mb.evolve_error_metrics(val_results['Predictions'], val_results['Actuals'])
-    mb.naive_mean_absolute_scaled_error(val_results['Predictions'], val_results['Actuals'])
+    mb.evolve_error_metrics(val_pred, val_actual)
+    mb.naive_mean_absolute_scaled_error(val_pred, val_actual)
 
     # Test
-    test_predictions = model.predict(X_test).flatten()
-    test_results = pd.DataFrame(data={'Predictions': test_predictions, 'Actuals': y_test})
+    test_predictions = model.predict(X_test)
 
-    # Error Metric for Test
-    mb.evolve_error_metrics(test_results['Predictions'], test_results['Actuals'])
-    mb.naive_mean_absolute_scaled_error(test_results['Predictions'], test_results['Actuals'])
+    # Converting predictions back to original scale
+    test_predicted = scaler.inverse_transform(test_predictions)
+    y_test_inverse = scaler.inverse_transform(y_test)
 
-    # Plot Validation
-    mb.plot_pm_true_predict_dl(val_results['Actuals'], val_results['Predictions'], 'Validation')
+    test_actual = y_test_inverse[:, 0]
+    test_pred = test_predicted[:, 0]
+    plot_actual_vs_predicted(test_actual, test_pred, "Test")
 
-    # Plot Test
-    mb.plot_pm_true_predict_dl(test_results['Actuals'], test_results['Predictions'], 'Test')
+    # Error Metric for Validation
+    mb.evolve_error_metrics(test_pred, test_actual)
+    mb.naive_mean_absolute_scaled_error(test_pred, test_actual)
 
 
 def ann_tune_and_evolve(df, frequency='H'):
-    X_train, X_val, X_test, y_train, y_val, y_test = load_data(df, frequency)
+    X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_model, best_hp = build_and_tune_ann_model(X_train, y_train, X_val, y_val)
 
@@ -446,6 +464,7 @@ def build_and_tune_lstm_model(X_train, y_train, X_val, y_val, max_trials=5, num_
     Returns:
         tensorflow.keras.models.Sequential: The best-tuned LSTM model.
     """
+    shape = y_train.shape[1]
 
     def build_lstm_model(hp):
         model = keras.Sequential()
@@ -468,18 +487,18 @@ def build_and_tune_lstm_model(X_train, y_train, X_val, y_val, max_trials=5, num_
         if hp.Boolean("dropout"):
             model.add(layers.Dropout(rate=0.25))
 
-        model.add(layers.Dense(1, activation="linear"))
+        model.add(layers.Dense(shape, activation="linear"))
         learning_rate = hp.Float("lr", min_value=1e-4, max_value=1e-2, sampling="log")
         model.compile(
             optimizer=keras.optimizers.legacy.Adam(learning_rate=learning_rate),
             loss="mean_squared_error",
-            metrics=[keras.metrics.MeanAbsoluteError()],
+            metrics=[keras.metrics.RootMeanSquaredError()],
         )
         return model
 
-    tuner = RandomSearch(
+    tuner = BayesianOptimization(
         hypermodel=build_lstm_model,
-        objective="val_mean_absolute_error",
+        objective=keras_tuner.Objective('val_root_mean_squared_error', direction='min'),
         max_trials=max_trials,
         directory="my_dir",
         project_name=f"lstm_tuning_{random.randint(1, 100)}",
@@ -516,7 +535,7 @@ def build_best_lstm_model(X_train, learning_rate=0.0004489034857354316, num_laye
 
 
 def lstm_train_and_evaluate(df, frequency='H'):
-    X_train, X_val, X_test, y_train, y_val, y_test = load_data(df, frequency)
+    X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_params = get_lstm_best_params(frequency)
     print(best_params)
@@ -555,7 +574,7 @@ def lstm_train_and_evaluate(df, frequency='H'):
 
 
 def lstm_tune_and_evolve(df, frequency='H'):
-    X_train, X_val, X_test, y_train, y_val, y_test = load_data(df, frequency)
+    X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_model, best_hp = build_and_tune_lstm_model(X_train, y_train, X_val, y_val)
 
@@ -626,6 +645,7 @@ def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
     Returns:
         tensorflow.keras.models.Sequential: The best-tuned LSTM model.
     """
+    shape = y_train.shape[1]
 
     def build_cnn_model(hp):
         model = keras.Sequential()
@@ -650,18 +670,18 @@ def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
         if hp.Boolean("dropout"):
             model.add(layers.Dropout(rate=0.25))
 
-        model.add(layers.Dense(1, activation="linear"))
+        model.add(layers.Dense(shape, activation="linear"))
         learning_rate = hp.Float("lr", min_value=1e-4, max_value=1e-2, sampling="log")
         model.compile(
             optimizer=keras.optimizers.legacy.Adam(learning_rate=learning_rate),
             loss="mean_squared_error",
-            metrics=[keras.metrics.MeanAbsoluteError()],
+            metrics=[keras.metrics.RootMeanSquaredError()],
         )
         return model
 
-    tuner = RandomSearch(
+    tuner = BayesianOptimization(
         hypermodel=build_cnn_model,
-        objective="val_mean_absolute_error",
+        objective=keras_tuner.Objective('val_root_mean_squared_error', direction='min'),
         max_trials=max_trials,
         directory="my_dir",
         project_name=f"cnn_tuning_{random.randint(1, 100)}",
@@ -698,7 +718,7 @@ def build_best_cnn_model(X_train, learning_rate=0.0004489034857354316, num_layer
 
 
 def cnn_train_and_evaluate(df, frequency='H'):
-    X_train, X_val, X_test, y_train, y_val, y_test = load_data(df, frequency)
+    X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_params = get_cnn_best_params(frequency)
     print(best_params)
@@ -740,16 +760,11 @@ def cnn_train_and_evaluate(df, frequency='H'):
 
 
 def cnn_tune_and_evolve(df, frequency='H'):
-    X_train, X_val, X_test, y_train, y_val, y_test = load_data(df, frequency)
+    X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_model, best_hp = build_and_tune_cnn_model(X_train, y_train, X_val, y_val)
 
     return best_model, best_hp
-
-
-from sklearn.preprocessing import MinMaxScaler
-import numpy as np
-import matplotlib.pyplot as plt
 
 
 def cnn_lstm(df):
@@ -796,7 +811,6 @@ def cnn_lstm(df):
             X.append(data[i:(i + window_size), :])
             y.append(data[i + window_size, :])
         return np.array(X), np.array(y)
-
 
     window_size = 6
     X, y = create_windows(scaled_data, window_size)
@@ -853,39 +867,6 @@ def cnn_lstm(df):
 
     actual = y_val_inverse[:, 0]
     pred = predicted[:, 0]
-
-    plt.figure(figsize=(12, 6))
-    plt.plot(actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
-    plt.plot(pred, color='red', marker='x', label='Predicted', linestyle='None')
-    plt.title('Actual vs Predicted Values')
-    plt.xlabel('Time')
-    plt.ylabel('Values')
-    plt.legend()
-    plt.show()
-
-    # Error Metric for Validation
-    mb.evolve_error_metrics(pred, actual)
-    mb.naive_mean_absolute_scaled_error(pred, actual)
-
-    actual = y_val_inverse[:, 1]
-    pred = predicted[:, 1]
-
-    plt.figure(figsize=(12, 6))
-    plt.plot(actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
-    plt.plot(pred, color='red', marker='x', label='Predicted', linestyle='None')
-    plt.title('Actual vs Predicted Values')
-    plt.xlabel('Time')
-    plt.ylabel('Values')
-    plt.legend()
-    plt.show()
-
-    # Error Metric for Validation
-    mb.evolve_error_metrics(pred, actual)
-    mb.naive_mean_absolute_scaled_error(pred, actual)
-
-
-    actual = y_val_inverse[:, 2]
-    pred = predicted[:, 2]
 
     plt.figure(figsize=(12, 6))
     plt.plot(actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)

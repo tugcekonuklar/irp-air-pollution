@@ -98,11 +98,11 @@ def read_all_air_pollutant_csv():
     """
 
     file_paths = {
-        'pm25': '../data/PM2.5_DE_DEBB021.csv',
-        'pm10': '../data/PM10_DE_DEBB021.csv',
-        'no2': '../data/NO2_DE_DEBB021.csv',
-        'o3': '../data/O3_DE_DEBB021.csv',
-        'so2': '../data/SO2_DE_DEBB021.csv'
+        'pm25': '../data/csv/PM2.5_DE_DEBB021.csv',
+        'pm10': '../data/csv/PM10_DE_DEBB021.csv',
+        'no2': '../data/csv/NO2_DE_DEBB021.csv',
+        'o3': '../data/csv/O3_DE_DEBB021.csv',
+        'so2': '../data/csv/SO2_DE_DEBB021.csv'
     }
     dataframes = {}
     for key, path in file_paths.items():

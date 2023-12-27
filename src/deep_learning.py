@@ -1,8 +1,7 @@
 import random
 
-import keras_tuner
+import keras_tuner as kt
 import pandas as pd
-from kerastuner.tuners import RandomSearch, BayesianOptimization
 from tensorflow import keras
 from tensorflow.keras import layers
 from tensorflow.keras.callbacks import ModelCheckpoint
@@ -236,32 +235,32 @@ def get_ann_best_params(frequency='H'):
     # Define best parameters for each frequency
     best_params = {
         'H': {
-            'learning_rate': 0.00033663431603295945,
-            'num_layers': 2,
-            'units': [288, 32],
-            'activations': ['relu', 'relu'],
+            'learning_rate': 0.0062012831694498545,
+            'num_layers': 5,
+            'units': [64, 64, 288, 32, 512],
+            'activations': ['tanh', 'tanh', 'tanh', 'tanh', 'tanh'],
             'dropout': True,
         },
         'D': {
-            'learning_rate': 0.006415517608465564,
-            'num_layers': 4,
-            'units': [352, 256, 256, 32],
-            'activations': ['relu', 'relu', 'relu', 'relu'],
-            'dropout': False,
+            'learning_rate': 0.00047719719927521065,
+            'num_layers': 5,
+            'units': [256, 160, 384, 96, 32],
+            'activations': ['tanh', 'tanh', 'tanh', 'tanh', 'tanh'],
+            'dropout': True,
         },
         'W': {
-            'learning_rate': 0.004533188169061783,
-            'num_layers': 3,
-            'units': [224, 224, 256],
-            'activations': ['relu', 'relu', 'relu'],
+            'learning_rate': 0.0007015644123562024,
+            'num_layers': 4,
+            'units': [160, 160, 128, 416],
+            'activations': ['tanh', 'tanh', 'tanh', 'tanh'],
             'dropout': False,
         },
         'M': {
-            'learning_rate': 0.000889004387467539,
-            'num_layers': 5,
-            'units': [288, 64, 320, 320, 448],
-            'activations': ['relu', 'relu', 'relu', 'relu', 'relu'],
-            'dropout': False,
+            'learning_rate': 0.001753559151044536,
+            'num_layers': 1,
+            'units': [288],
+            'activations': ['tanh'],
+            'dropout': True,
         }
     }
 
@@ -308,9 +307,9 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
         )
         return model
 
-    tuner = BayesianOptimization(
+    tuner = kt.BayesianOptimization(
         hypermodel=build_ann_model,
-        objective=keras_tuner.Objective('val_root_mean_squared_error', direction='min'),
+        objective=kt.Objective('val_root_mean_squared_error', direction='min'),
         max_trials=max_trials,
         directory="my_dir",
         project_name=f"ann_tuning_{random.randint(1, 100)}",
@@ -416,31 +415,31 @@ def get_lstm_best_params(frequency):
     # Define best parameters for each frequency
     best_params = {
         'H': {
-            'learning_rate': 0.0017115621539278423,
-            'num_layers': 6,
-            'units': [64, 384, 480, 160, 32, 32],
-            'activations': ['relu', 'relu', 'relu', 'relu', 'relu', 'relu'],
+            'learning_rate': 0.00019153080222192724,
+            'num_layers': 2,
+            'units': [448, 224],
+            'activations': ['tanh', 'tanh'],
             'dropout': False,
         },
         'D': {
-            'learning_rate': 0.002830345538814358,
-            'num_layers': 5,
-            'units': [96, 288, 256, 448, 384],
-            'activations': ['relu', 'relu', 'relu', 'relu', 'relu'],
+            'learning_rate': 0.0028652697828724623,
+            'num_layers': 3,
+            'units': [480, 384, 288],
+            'activations': ['tanh', 'tanh', 'tanh'],
             'dropout': True,
         },
         'W': {
-            'learning_rate': 0.0017202351384356584,
-            'num_layers': 2,
-            'units': [224, 320],
-            'activations': ['tanh', 'relu'],
-            'dropout': True,
+            'learning_rate': 0.002737350599350577,
+            'num_layers': 5,
+            'units': [416, 192, 448, 448, 192],
+            'activations': ['tanh', 'relu', 'relu', 'relu', 'relu'],
+            'dropout': False,
         },
         'M': {
-            'learning_rate': 0.001601227482635775,
-            'num_layers': 4,
-            'units': [480, 192, 192, 288],
-            'activations': ['relu', 'relu', 'relu', 'relu'],
+            'learning_rate': 0.0013383290456424192,
+            'num_layers': 5,
+            'units': [288, 352, 480, 224, 192],
+            'activations': ['relu', 'tanh', 'tanh', 'tanh', 'tanh'],
             'dropout': False,
         }
     }
@@ -496,9 +495,9 @@ def build_and_tune_lstm_model(X_train, y_train, X_val, y_val, max_trials=5, num_
         )
         return model
 
-    tuner = BayesianOptimization(
+    tuner = kt.BayesianOptimization(
         hypermodel=build_lstm_model,
-        objective=keras_tuner.Objective('val_root_mean_squared_error', direction='min'),
+        objective=kt.Objective('val_root_mean_squared_error', direction='min'),
         max_trials=max_trials,
         directory="my_dir",
         project_name=f"lstm_tuning_{random.randint(1, 100)}",
@@ -606,32 +605,32 @@ def get_cnn_best_params(frequency):
     # Define best parameters for each frequency
     best_params = {
         'H': {
-            'learning_rate': 0.00010374652025290634,
-            'num_layers': 6,
-            'units': [352, 448, 416, 64, 288, 288],
-            'activations': ['tanh', 'relu', 'relu', 'relu', 'relu', 'relu'],
-            'dropout': True,
-        },
-        'D': {
-            'learning_rate': 0.006172427728586157,
-            'num_layers': 4,
-            'units': [224, 32, 512, 224],
-            'activations': ['tanh', 'relu', 'relu', 'relu'],
+            'learning_rate': 0.00021997838024224393,
+            'num_layers': 2,
+            'units': [224, 256],
+            'activations': ['relu', 'tanh'],
             'dropout': False,
         },
+        'D': {
+            'learning_rate': 0.0012918827423762096,
+            'num_layers': 5,
+            'units': [96, 448, 96, 512, 320],
+            'activations': ['tanh', 'tanh', 'tanh', 'tanh', 'tanh'],
+            'dropout': True,
+        },
         'W': {
-            'learning_rate': 0.002717326166807044,
-            'num_layers': 3,
-            'units': [128, 32, 512],
-            'activations': ['tanh', 'relu', 'relu'],
+            'learning_rate': 0.0031087381681937547,
+            'num_layers': 4,
+            'units': [96, 32, 96, 96],
+            'activations': ['tanh', 'tanh', 'tanh', 'tanh'],
             'dropout': True,
         },
         'M': {
-            'learning_rate': 0.002539774299219148,
-            'num_layers': 5,
-            'units': [352, 352, 448, 416, 352],
-            'activations': ['tanh', 'relu', 'relu', 'relu', 'relu'],
-            'dropout': True,
+            'learning_rate': 0.0006346833837140555,
+            'num_layers': 6,
+            'units': [224, 384, 96, 64, 96, 32],
+            'activations': ['relu', 'tanh', 'tanh', 'tanh', 'tanh', 'tanh'],
+            'dropout': False,
         }
     }
 
@@ -688,9 +687,9 @@ def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
         )
         return model
 
-    tuner = BayesianOptimization(
+    tuner = kt.BayesianOptimization(
         hypermodel=build_cnn_model,
-        objective=keras_tuner.Objective('val_root_mean_squared_error', direction='min'),
+        objective=kt.Objective('val_root_mean_squared_error', direction='min'),
         max_trials=max_trials,
         directory="my_dir",
         project_name=f"cnn_tuning_{random.randint(1, 100)}",

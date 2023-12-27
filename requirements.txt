@@ -12,3 +12,4 @@ xgboost==2.0.1
 scipy==1.11.3
 keras-tuner==1.4.6
 pyarrow==13.0.0
+tensorflow~=2.15.0

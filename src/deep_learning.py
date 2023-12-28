@@ -259,8 +259,8 @@ def get_ann_best_params(frequency='H'):
         'M': {
             'learning_rate': 0.0040835753251513085,
             'num_layers': 2,
-            'units': [32,32],
-            'activations': ['tanh','tanh'],
+            'units': [32, 32],
+            'activations': ['tanh', 'tanh'],
             'dropout': False,
         }
     }
@@ -430,10 +430,15 @@ def get_lstm_best_params(frequency):
             'dropout': True,
         },
         'W': {
-            'learning_rate': 0.002737350599350577,
-            'num_layers': 5,
-            'units': [416, 192, 448, 448, 192],
-            'activations': ['tanh', 'relu', 'relu', 'relu', 'relu'],
+            # 'learning_rate': 0.002737350599350577,
+            # 'num_layers': 5,
+            # 'units': [416, 192, 448, 448, 192],
+            # 'activations': ['tanh', 'relu', 'relu', 'relu', 'relu'],
+            # 'dropout': False,
+            'learning_rate': 0.0009513380195031257,
+            'num_layers': 6,
+            'units': [480, 160, 64, 224, 512, 384],
+            'activations': ['relu', 'tanh', 'tanh', 'tanh', 'tanh', 'tanh'],
             'dropout': False,
         },
         'M': {

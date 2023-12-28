@@ -234,33 +234,34 @@ def get_ann_best_params(frequency='H'):
     """
     # Define best parameters for each frequency
     best_params = {
+        ## KEEP IT
         'H': {
-            'learning_rate': 0.0062012831694498545,
-            'num_layers': 5,
-            'units': [64, 64, 288, 32, 512],
+            'learning_rate': 0.00014014488528467923,
+            'num_layers': 3,
+            'units': [448, 256, 160],
             'activations': ['tanh', 'tanh', 'tanh', 'tanh', 'tanh'],
             'dropout': True,
         },
         'D': {
-            'learning_rate': 0.00047719719927521065,
+            'learning_rate': 0.0005906296261520694,
             'num_layers': 5,
-            'units': [256, 160, 384, 96, 32],
+            'units': [224, 32, 96, 32, 160],
             'activations': ['tanh', 'tanh', 'tanh', 'tanh', 'tanh'],
             'dropout': True,
         },
         'W': {
-            'learning_rate': 0.0007015644123562024,
+            'learning_rate': 0.0004077726925804003,
             'num_layers': 4,
-            'units': [160, 160, 128, 416],
+            'units': [352, 32, 32, 32],
             'activations': ['tanh', 'tanh', 'tanh', 'tanh'],
             'dropout': False,
         },
         'M': {
-            'learning_rate': 0.001753559151044536,
-            'num_layers': 1,
-            'units': [288],
-            'activations': ['tanh'],
-            'dropout': True,
+            'learning_rate': 0.0040835753251513085,
+            'num_layers': 2,
+            'units': [32,32],
+            'activations': ['tanh','tanh'],
+            'dropout': False,
         }
     }
 

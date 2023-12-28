@@ -14,7 +14,7 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.tree import DecisionTreeRegressor
 
 import model_base as mb
-import supervised as sp
+import traditional as td
 
 GRADIENT_BOOSTING = 'gradient_boosting'
 HISTOGRAM_GRADIENT_BOOSTING = 'histogram_gradient_boosting'
@@ -587,9 +587,8 @@ def voting_train_and_evolve(df, frequency='H'):
     model_ada = init_ensemble_model(ADABOOST, frequency)
     model_cat = init_ensemble_model(CATBOOST, frequency)
     model_rf = init_ensemble_model(RANDOMFOREST, frequency)
-    model_svr = sp.init_svr_pipeline(frequency)
-    model_lr = sp.init_linear_model()
-    model_lasso = sp.init_lasso_model_with_random()
+    model_svr = td.init_svr_pipeline(frequency)
+    model_lr = td.init_linear_model()
 
     # Create the voting regressor
     model = VotingRegressor(
@@ -600,9 +599,7 @@ def voting_train_and_evolve(df, frequency='H'):
                     ('cat', model_cat),
                     ('rf', model_rf),
                     ('svr', model_svr),
-                    ('lr', model_lr),
-                    ('lasso', model_lasso)
-                    ]
+                    ('mlr', model_lr)]
     )
 
     model.fit(X_train, y_train)

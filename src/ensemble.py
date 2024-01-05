@@ -593,7 +593,7 @@ def voting_train_and_evolve(df, frequency='H'):
     # Create the voting regressor
     model = VotingRegressor(
         estimators=[('gb', model_gb),
-                    ('histy_gb', model_hist_gb),
+                    ('hist_gb', model_hist_gb),
                     ('xgb', model_xgb),
                     ('ada', model_ada),
                     ('cat', model_cat),

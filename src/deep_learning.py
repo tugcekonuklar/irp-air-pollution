@@ -222,7 +222,7 @@ def load_data(df, frequency='H'):
     return preprocess_and_scale_data(df, window_size=window_size[frequency])
 
 
-def get_ann_best_params(frequency='H'):
+def get_dnn_best_params(frequency='H'):
     """
     Returns the best parameters for LSTM based on the specified frequency.
 
@@ -269,10 +269,10 @@ def get_ann_best_params(frequency='H'):
     return best_params.get(frequency, "Invalid frequency")
 
 
-## ANN
-def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10, frequency='H'):
+## DNN
+def build_and_tune_dnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10, frequency='H'):
     """
-    Build and tune an ANN model using Keras Tuner.
+    Build and tune an dnn model using Keras Tuner.
 
     Parameters:
         X_train (numpy.ndarray): Training data.
@@ -287,7 +287,7 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
     """
     shape = y_train.shape[1]
 
-    def build_ann_model(hp):
+    def build_dnn_model(hp):
         model = keras.Sequential()
         model.add(layers.Flatten())
         for i in range(hp.Int("num_layers", 1, 5)):
@@ -309,11 +309,11 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
         return model
 
     tuner = kt.BayesianOptimization(
-        hypermodel=build_ann_model,
+        hypermodel=build_dnn_model,
         objective=kt.Objective('val_root_mean_squared_error', direction='min'),
         max_trials=max_trials,
         directory="my_dir",
-        project_name=f"ann_tuning_{random.randint(1, 100)}",
+        project_name=f"dnn_tuning_{random.randint(1, 100)}",
     )
 
     tuner.search(X_train, y_train, epochs=num_epochs, validation_data=(X_val, y_val))
@@ -324,7 +324,7 @@ def build_and_tune_ann_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
     return best_model, best_hp
 
 
-def build_best_ann_model(y_train, learning_rate=0.0004489034857354316, num_layers=3, units=[320, 32, 32],
+def build_best_dnn_model(y_train, learning_rate=0.0004489034857354316, num_layers=3, units=[320, 32, 32],
                          activations=['relu', 'relu', 'relu'], dropout=False):
     model = Sequential()
     model.add(layers.Flatten())
@@ -343,22 +343,22 @@ def build_best_ann_model(y_train, learning_rate=0.0004489034857354316, num_layer
     return model
 
 
-def ann_train_and_evaluate(df, frequency='H'):
+def dnn_train_and_evaluate(df, frequency='H'):
     X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
-    best_params = get_ann_best_params(frequency)
+    best_params = get_dnn_best_params(frequency)
     print(best_params)
 
-    model = build_best_ann_model(y_train, learning_rate=best_params['learning_rate'],
+    model = build_best_dnn_model(y_train, learning_rate=best_params['learning_rate'],
                                  num_layers=best_params['num_layers'],
                                  units=best_params['units'],
                                  activations=best_params['activations'],
                                  dropout=best_params['dropout'])
 
-    cp = ModelCheckpoint(f'ann_model_{frequency}/', save_best_only=True)
+    cp = ModelCheckpoint(f'dnn_model_{frequency}/', save_best_only=True)
     model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
 
-    model = load_model(f'ann_model_{frequency}/')
+    model = load_model(f'dnn_model_{frequency}/')
 
     print(model.summary())
 
@@ -393,10 +393,10 @@ def ann_train_and_evaluate(df, frequency='H'):
     mb.naive_mean_absolute_scaled_error(test_pred, test_actual)
 
 
-def ann_tune_and_evolve(df, frequency='H'):
+def dnn_tune_and_evolve(df, frequency='H'):
     X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
-    best_model, best_hp = build_and_tune_ann_model(X_train, y_train, X_val, y_val)
+    best_model, best_hp = build_and_tune_dnn_model(X_train, y_train, X_val, y_val)
 
     return best_model, best_hp
 

@@ -423,11 +423,18 @@ def init_ensemble_model(algorithm: str, frequency='H'):
             get_xgb_model(frequency)
         ])
     elif algorithm == ADABOOST:
-        return get_ada_model(frequency)
+        return Pipeline([
+            ('scaler', StandardScaler()),
+            ('adaboost', get_ada_model(frequency))
+        ])
     elif algorithm == CATBOOST:
         return get_cat_model(frequency)
     elif algorithm == RANDOMFOREST:
-        return get_random_forest_model(frequency)
+        return Pipeline([
+            ('scaler', StandardScaler()),
+            ('pca', PCA(n_components=0.95)),
+            get_random_forest_model(frequency)
+        ])
     else:
         raise ValueError("Unknown algorithm enum provided!")
 
@@ -586,8 +593,8 @@ def voting_train_and_evolve(df, frequency='H'):
     model_xgb = init_ensemble_model(XGBOOST, frequency)
     model_ada = init_ensemble_model(ADABOOST, frequency)
     model_cat = init_ensemble_model(CATBOOST, frequency)
-    model_rf = init_ensemble_model(RANDOMFOREST, frequency)
-    model_svr = td.init_svr_pipeline(frequency)
+    model_rf = get_random_forest_model(frequency)  # init_ensemble_model(RANDOMFOREST, frequency)
+    model_svr = td.init_svr(frequency)
     model_lr = td.init_linear_model()
 
     # Create the voting regressor

@@ -249,7 +249,7 @@ def get_svr_best_params(frequency):
     return best_params.get(frequency, "Invalid frequency")
 
 
-def init_svr_pipeline(frequency):
+def init_svr(frequency):
     best_params = get_svr_best_params(frequency)
     return Pipeline([
         ('scaler', StandardScaler()),
@@ -331,7 +331,7 @@ def svr_train_and_evolve(df, frequency='H'):
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
 
     # Initialize and train the SVR model
-    pipeline = init_svr_pipeline(frequency)
+    pipeline = init_svr(frequency)
     pipeline.fit(X_train, y_train)
 
     # # Make predictions on the validation set

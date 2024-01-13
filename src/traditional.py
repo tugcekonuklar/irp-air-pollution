@@ -91,9 +91,9 @@ def split_data(df):
 
     data_length = len(pm25_data)
 
-    # Calculate indices for 60%, 80% of the data
-    train_end = int(data_length * 0.6)
-    val_end = int(data_length * 0.8)
+    # Calculate indices for 50%, 70% of the data
+    train_end = int(data_length * 0.5)
+    val_end = int(data_length * 0.7)
 
     # Split the data
     y_train, train_exog = pm25_data.iloc[:train_end], exog_data.iloc[:train_end]

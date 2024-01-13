@@ -332,7 +332,7 @@ def scale_target(train_data, validation_data, test_data, scaler):
 
 
 def split_data(df):
-    train_ratio = 0.6
+    train_ratio = 0.5
     validation_ratio = 0.2
 
     # Calculate the indices for the splits

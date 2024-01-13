@@ -135,7 +135,7 @@ def preprocess_time_series(df, frequency='H',
     return df_ts
 
 
-def preprocess_and_normalize_data(df, window_size=24, train_ratio=0.6, val_ratio=0.2):
+def preprocess_and_normalize_data(df, window_size=24, train_ratio=0.5, val_ratio=0.2):
     """
     Preprocess and normalize time series data.
 
@@ -181,7 +181,7 @@ def create_windows(data, window_size=24):
     return np.array(X), np.array(y)
 
 
-def preprocess_and_scale_data(df, window_size=24, train_ratio=0.6, val_ratio=0.2):
+def preprocess_and_scale_data(df, window_size=24, train_ratio=0.5, val_ratio=0.2):
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(df)
 
@@ -838,9 +838,9 @@ def cnn_lstm(df):
     X, y = create_windows(scaled_data, window_size)
     print(X.shape)
 
-    train_size = int(len(X) * 0.6)  # 60% of the data for training
+    train_size = int(len(X) * 0.5)  # 50% of the data for training
     validation_size = int(len(X) * 0.2)  # 20% of the data for validation
-    test_size = len(X) - train_size - validation_size  # Remaining 20% for testing
+    test_size = len(X) - train_size - validation_size  # Remaining 30% for testing
 
     X_train, y_train = X[:train_size], y[:train_size]
     X_val, y_val = X[train_size:train_size + validation_size], y[train_size:train_size + validation_size]

@@ -4,7 +4,7 @@ import keras_tuner as kt
 import pandas as pd
 from tensorflow import keras
 from tensorflow.keras import layers
-from tensorflow.keras.callbacks import ModelCheckpoint
+from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import load_model
 from sklearn.preprocessing import MinMaxScaler
@@ -216,7 +216,7 @@ def preprocess_and_scale_data(df, window_size=24, train_ratio=0.6, val_ratio=0.2
 #     return preprocess_and_normalize_data(df, window_size=window_size[frequency])
 
 def load_data(df, frequency='H'):
-    window_size = {'H': 24, 'D': 30, 'W': 52, 'M': 12}
+    window_size = {'H': 24, 'D': 24, 'W': 24, 'M': 12}
     df = set_index_to_datetime(df, frequency)
     df = preprocess_time_series(df, frequency)
     return preprocess_and_scale_data(df, window_size=window_size[frequency])
@@ -356,7 +356,15 @@ def dnn_train_and_evaluate(df, frequency='H'):
                                  dropout=best_params['dropout'])
 
     cp = ModelCheckpoint(f'dnn_model_{frequency}/', save_best_only=True)
-    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
+
+    early_stopping = EarlyStopping(
+        monitor='val_loss',  # Monitor validation loss for a regression problem
+        patience=10,  # Number of epochs with no improvement
+        verbose=1,
+        restore_best_weights=True
+    )
+    callbacks = [cp, early_stopping] if frequency == 'H' else [cp]
+    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=callbacks)
 
     model = load_model(f'dnn_model_{frequency}/')
 
@@ -552,7 +560,14 @@ def lstm_train_and_evaluate(df, frequency='H'):
                                   dropout=best_params['dropout'])
 
     cp = ModelCheckpoint(f'lstm_model_{frequency}/', save_best_only=True)
-    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
+    early_stopping = EarlyStopping(
+        monitor='val_loss',  # Monitor validation loss for a regression problem
+        patience=10,  # Number of epochs with no improvement
+        verbose=1,
+        restore_best_weights=True
+    )
+    callbacks = [cp, early_stopping] if frequency == 'H' else [cp]
+    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=callbacks)
 
     model = load_model(f'lstm_model_{frequency}/')
 
@@ -632,11 +647,11 @@ def get_cnn_best_params(frequency):
             'dropout': True,
         },
         'M': {
-            'learning_rate': 0.0006346833837140555,
-            'num_layers': 6,
-            'units': [224, 384, 96, 64, 96, 32],
+            'learning_rate': 0.0009974518412524185,
+            'num_layers': 5,
+            'units': [64, 448, 256, 64, 416, ],
             'activations': ['relu', 'tanh', 'tanh', 'tanh', 'tanh', 'tanh'],
-            'dropout': False,
+            'dropout': True,
         }
     }
 
@@ -746,7 +761,14 @@ def cnn_train_and_evaluate(df, frequency='H'):
                                  dropout=best_params['dropout'])
 
     cp = ModelCheckpoint(f'cnn_model_{frequency}/', save_best_only=True)
-    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=[cp])
+    early_stopping = EarlyStopping(
+        monitor='val_loss',  # Monitor validation loss for a regression problem
+        patience=10,  # Number of epochs with no improvement
+        verbose=1,
+        restore_best_weights=True
+    )
+    callbacks = [cp, early_stopping] if frequency == 'H' else [cp]
+    model.fit(X_train, y_train, validation_data=(X_val, y_val), epochs=10, callbacks=callbacks)
 
     model = load_model(f'cnn_model_{frequency}/')
 

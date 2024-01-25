@@ -397,17 +397,20 @@ def evolve_error_metrics(y_true, y_pred):
     mse = mean_squared_error(y_true, y_pred)
     rmse = mse ** 0.5
     mape = mean_absolute_percentage_error(y_true, y_pred)
+    bias = np.mean(y_pred - y_true)  # Calculating bias
 
     print(f"MAE: {mae:.4f}")
     print(f"MSE: {mse:.4f}")
     print(f"RMSE: {rmse:.4f}")
     print(f"MAPE: {mape:.4f}")
+    print(f"Bias: {bias:.4f}")
 
     metrics = {
         'MAE': mae,
         'MSE': mse,
         'RMSE': rmse,
-        'MAPE': mape
+        'MAPE': mape,
+        'Bias': bias
     }
     return metrics
 

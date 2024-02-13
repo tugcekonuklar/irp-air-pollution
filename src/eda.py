@@ -427,19 +427,31 @@ def pairplot(df, title="Pairplot"):
 
 
 def feature_importance(df):
-    # Train a simple Random Forest model and check the feature importances. 
-    # Define your features and target variable
+    """
+    Trains a Random Forest model on the provided DataFrame and plots the top 10 feature importances.
+
+    Parameters:
+    - df: DataFrame containing the dataset with features and target variable.
+    """
+    # Split data into training, validation, and testing sets
     train_data, validation_data, test_data = mb.split_data(df)
-    # Extract the features
-    X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
-    # Extract the target variable
+
+    # Extract features from the datasets
+    x_train, x_val, x_test = mb.extract_features(train_data, validation_data, test_data)
+
+    # Extract the target variable from the datasets
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
 
-    # Assuming X is your feature set and y is the target variable
+    # Train a Random Forest Regressor model
     model = RandomForestRegressor()
-    model.fit(X_train, y_train)
-    feature_importances = pd.Series(model.feature_importances_, index=X_train.columns)
-    feature_importances.nlargest(10).plot(kind='barh')
+    model.fit(x_train, y_train)
+
+    # Calculate feature importance and plot the top 10
+    feature_importance = pd.Series(model.feature_importances_, index=x_train.columns)
+    feature_importance.nlargest(10).plot(kind='barh')
+    plt.title('Top 10 Feature Importance')
+    plt.xlabel('Importance')
+    plt.ylabel('Features')
     plt.show()
 
 

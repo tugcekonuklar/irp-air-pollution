@@ -1,8 +1,7 @@
 import model_base as mb
-import matplotlib.pyplot as plt
 import pandas as pd
 from statsmodels.tsa.statespace.sarimax import SARIMAX
-from sklearn.metrics import mean_squared_error, mean_absolute_error, mean_absolute_percentage_error
+from sklearn.metrics import mean_absolute_error
 import itertools
 from datetime import datetime
 import numpy as np
@@ -17,9 +16,9 @@ ALL = ['NO2-Value', 'O3-Value', 'SO2-Value', 'PM10-Value', 'PM2.5-Value']
 TARGET = 'PM2.5-Value'
 
 
-def get_arimax_best_params(frequency='H'):
+def get_sarimax_best_params(frequency='H'):
     """
-    Returns the best parameters for ARIMAX based on the specified frequency.
+    Returns the best parameters for SARIMAX based on the specified frequency.
 
     Args:
     - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
@@ -51,34 +50,29 @@ def get_arimax_best_params(frequency='H'):
     return best_params.get(frequency, "Invalid frequency")
 
 
-def plot_pm_true_predict(y_actual, y_pred, name):
-    # Plotting the actual vs predicted values
-    plt.figure(figsize=(15, 5))
+def sarimax_split_data(df, target_column=TARGET, retain_variance=0.95, train_ratio=0.6, validation_ratio=0.2):
+    """
+    Splits the dataset into training, validation, and test sets after standardizing features
+    and applying PCA for dimensionality reduction.
 
-    # Actual values - using blue color with a line marker
-    plt.plot(y_actual.index, y_actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
+    Args:
+        df (pandas.DataFrame): The input dataset containing features and a target column.
+        target_column (str): The name of the target column in the dataset.
+        retain_variance (float): The proportion of variance to retain in PCA. Defaults to 0.95.
+        train_ratio (float): The proportion of the dataset to include in the train set.
+        validation_ratio (float): The proportion of the dataset to include in the validation set.
 
-    # Predicted values - using red color with a cross marker
-    plt.plot(y_actual.index, y_pred, color='red', marker='x', label='Predicted', linestyle='None')
-
-    plt.title(f'{name} Set - Actual vs Predicted PM2.5')
-    plt.xlabel('Date')
-    plt.ylabel('PM2.5')
-    plt.legend()
-    plt.grid()
-    plt.show()
-
-
-def split_data(df):
+    Returns:
+        tuple: Six elements containing training, validation, and test sets for both target values and exogenous variables.
+    """
     data = df[ALL]
-    # Assuming the dataset contains additional features other than PM2.5 values
-    # Standardize the features before applying PCA
-    features = data.drop([TARGET], axis=1)
+    # Standardize the features excluding the target column
+    features = data.drop(columns=[target_column], axis=1)
     scaler = StandardScaler()
     features_scaled = scaler.fit_transform(features)
 
     # Apply PCA to reduce dimensionality
-    pca = PCA(n_components=0.95)  # Retain 95% of the variance
+    pca = PCA(n_components=retain_variance)
     principal_components = pca.fit_transform(features_scaled)
 
     # Add the principal components as new columns to the dataset
@@ -89,13 +83,11 @@ def split_data(df):
     pm25_data = data[TARGET]
     exog_data = data.drop([TARGET], axis=1)
 
-    data_length = len(pm25_data)
+    # Splitting the dataset
+    data_length = len(data)
+    train_end = int(data_length * train_ratio)
+    val_end = train_end + int(data_length * validation_ratio)
 
-    # Calculate indices for 60%, 80% of the data
-    train_end = int(data_length * 0.6)
-    val_end = int(data_length * 0.8)
-
-    # Split the data
     y_train, train_exog = pm25_data.iloc[:train_end], exog_data.iloc[:train_end]
     y_val, val_exog = pm25_data.iloc[train_end:val_end], exog_data.iloc[train_end:val_end]
     y_test, test_exog = pm25_data.iloc[val_end:], exog_data.iloc[val_end:]
@@ -107,11 +99,21 @@ def split_data(df):
     return y_train, train_exog, y_val, val_exog, y_test, test_exog
 
 
-def arimax_train_and_evolve(df, frequency='H'):
-    y_train, train_exog, y_val, val_exog, y_test, test_exog = split_data(df)
+def sarimax_train_and_evolve(df, frequency='H'):
+    """
+        Trains a SARIMAX model and evaluates its performance on validation and test sets.
 
-    # Fit the ARIMAX model with PCA components as exogenous variables on the training data
-    best_params = get_arimax_best_params(frequency)
+        Args:
+            df (pd.DataFrame): The input dataset.
+            frequency (str): The frequency of the time series data (e.g., 'H' for hourly).
+
+        This function fits a SARIMAX model using the best parameters found for a given frequency,
+        evaluates its performance on validation and test sets, and plots the predictions.
+    """
+    y_train, train_exog, y_val, val_exog, y_test, test_exog = sarimax_split_data(df)
+
+    # Fit the SARIMAX model with PCA components as exogenous variables on the training data
+    best_params = get_sarimax_best_params(frequency)
     model = SARIMAX(y_train, exog=train_exog, order=best_params['order'],
                     seasonal_order=best_params['seasonal_order'])
     model_fit = model.fit()
@@ -139,14 +141,26 @@ def arimax_train_and_evolve(df, frequency='H'):
     mb.evolve_error_metrics(y_test, test_predictions)
     mb.naive_mean_absolute_scaled_error(y_test, test_predictions)
 
-    plot_pm_true_predict(y_val, val_predictions, 'Validation')
-    plot_pm_true_predict(y_test, test_predictions, 'Test')
+    mb.plot_pm_true_index_predict(y_val, val_predictions, 'Validation')
+    mb.plot_pm_true_index_predict(y_test, test_predictions, 'Test')
 
 
-def tune_arimax(df, max_p=7, max_d=5, max_q=7):
+def tune_sarimax(df, max_p=7, max_d=5, max_q=7):
+    """
+    Tunes a SARIMAX model's parameters based on the mean absolute error (MAE) on the validation set.
+
+    Args:
+        df (pd.DataFrame): The input dataset.
+        max_p (int): The maximum value of the AR parameter to test.
+        max_d (int): The maximum value of the differencing parameter to test.
+        max_q (int): The maximum value of the MA parameter to test.
+
+    Returns:
+        dict: The best parameters found during tuning.
+    """
     best_mae = float('inf')
     best_params = None
-    y_train, train_exog, y_val, val_exog, y_test, test_exog = split_data(df)
+    y_train, train_exog, y_val, val_exog, y_test, test_exog = sarimax_split_data(df)
 
     for p, d, q in itertools.product(range(max_p + 1), range(max_d + 1), range(max_q + 1)):
         try:
@@ -171,12 +185,20 @@ def init_linear_model():
 
 
 def linear_train_and_evolve(df, model=init_linear_model()):
+    """
+    Trains a Multiple Linear Regression model and evaluates its performance on validation and test sets after
+    applying feature scaling and PCA for dimensionality reduction.
+
+    Args:
+        df (pd.DataFrame): Input dataset.
+        model: MLR model instance. If None, a new model will be initialized.
+    """
     train_data, validation_data, test_data = mb.split_data(df)
 
     # Scale the features
     X_train_scaled, X_val_scaled, X_test_scaled = mb.scale_features(train_data, validation_data, test_data)
     # Apply PCA on the scaled data
-    pca = mb.init_pca()
+    pca = PCA(n_components=0.95)
     pca.fit(X_train_scaled)
     # Transform the datasets using the fitted PCA
     X_train_pca = pca.transform(X_train_scaled)
@@ -189,8 +211,6 @@ def linear_train_and_evolve(df, model=init_linear_model()):
     model.fit(X_train_pca, y_train)
     # Make predictions on the validation set
     y_val_pred = model.predict(X_val_pca)
-
-    #     print(y_val_pred)
 
     # Error Metric
     mb.evolve_error_metrics(y_val, y_val_pred)
@@ -260,6 +280,15 @@ def init_svr(frequency):
 
 
 def svr_tune_and_evaluate(df):
+    """
+    Tunes a SVR model's parameters based on the mean square error (MSE) on the validation set.
+
+    Args:
+        df (pd.DataFrame): The input dataset.
+
+    Returns:
+        dict: The best parameters found during tuning.
+    """
     n_iter_search = 10
     random_state = 42
 
@@ -323,6 +352,13 @@ def svr_tune_and_evaluate(df):
 
 
 def svr_train_and_evolve(df, frequency='H'):
+    """
+    Trains a SVR and evaluates its performance on validation and test sets after
+
+    Args:
+        df (pd.DataFrame): Input dataset.
+        frequency: frequency of data
+    """
     ## Splitting Data
     train_data, validation_data, test_data = mb.split_data(df)
     # Extract the features

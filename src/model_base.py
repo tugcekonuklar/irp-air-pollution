@@ -1,9 +1,9 @@
 import warnings
-
+import os
+import pyarrow.parquet as pq
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from sklearn.decomposition import PCA
 from sklearn.metrics import mean_absolute_error, mean_squared_error, mean_absolute_percentage_error
 from sklearn.preprocessing import StandardScaler
 
@@ -23,6 +23,35 @@ WEEKLY_TIMESTAMP_FILE_PATH = '../data/WEEKLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.c
 
 MONTHLY_DATETIME_FILE_PATH = '../data/MONTLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
 MONTHLY_TIMESTAMP_FILE_PATH = '../data/MONTLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
+
+
+def convert_parquet_to_csv(input_folder="../data/parquet", output_folder="../data/csv"):
+    """
+    Converts all Parquet files in the input_folder to CSV files in the output_folder.
+
+    Parameters:
+    - input_folder: Folder containing Parquet files.
+    - output_folder: Destination folder for CSV files.
+    """
+    # Ensure the output folder exists
+    os.makedirs(output_folder, exist_ok=True)
+
+    # Loop through all files in the input folder
+    for filename in os.listdir(input_folder):
+        if filename.endswith(".parquet"):
+            # Full paths for the input Parquet and output CSV files
+            parquet_file = os.path.join(input_folder, filename)
+            csv_file = os.path.join(output_folder, filename.replace(".parquet", ".csv"))
+
+            try:
+                # Read the Parquet file and convert to a DataFrame
+                df = pq.read_table(parquet_file).to_pandas()
+
+                # Write the DataFrame to a CSV file
+                df.to_csv(csv_file, index=False)
+                print(f"Successfully converted {parquet_file} to {csv_file}.")
+            except Exception as e:
+                print(f"Error converting {parquet_file}: {e}")
 
 
 def move_columns_to_front(df, cols_to_move):
@@ -137,23 +166,39 @@ def read_frequency_data(file_paths):
 
 
 def read_date_freq():
-    file_paths_date = {
+    """
+    Reads date-frequency data from predefined file paths.
+
+    This function maps various date frequencies (hourly, daily, weekly, monthly)
+    to their respective file paths and reads the data using the read_frequency_data function.
+
+    Returns:
+        The result of the read_frequency_data function call with the mapped file paths.
+    """
+    return read_frequency_data({
         'hourly': HOURLY_DATETIME_FILE_PATH,
         'daily': DAILY_DATETIME_FILE_PATH,
         'weekly': WEEKLY_DATETIME_FILE_PATH,
         'monthly': MONTHLY_DATETIME_FILE_PATH
-    }
-    return read_frequency_data(file_paths_date)
+    })
 
 
 def read_timestamp_freq():
-    file_paths_timestamp = {
+    """
+    Reads timestamp frequency data from predefined file paths.
+
+    This function maps various timestamp frequencies (hourly, daily, weekly, monthly)
+    to their respective file paths and reads the data using the read_frequency_data function.
+
+    Returns:
+        The result of the read_frequency_data function call with the mapped file paths.
+    """
+    return read_frequency_data({
         'hourly': HOURLY_TIMESTAMP_FILE_PATH,
         'daily': DAILY_TIMESTAMP_FILE_PATH,
         'weekly': WEEKLY_TIMESTAMP_FILE_PATH,
         'monthly': MONTHLY_TIMESTAMP_FILE_PATH
-    }
-    return read_frequency_data(file_paths_timestamp)
+    })
 
 
 def read_hourly_datetime_df():
@@ -262,18 +307,48 @@ def process_date_freq_data(df):
 
 
 def set_start_index(df, index_col):
-    return df.set_index(index_col, inplace=True)
+    """
+    Sets the specified column as the DataFrame index in-place.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame to modify.
+        index_col (str): The column name to set as the new index.
+
+    Returns:
+        None: The operation modifies the DataFrame in-place and does not return a value.
+    """
+    df.set_index(index_col, inplace=True)
 
 
 def define_target_features(df):
-    # Separate the features and target
-    X = df[FEATURES]
+    """
+    Separates the specified features and target from the given DataFrame.
+
+    Args:
+        df (pandas.DataFrame): The DataFrame containing the data.
+
+    Returns:
+        tuple: A tuple where the first element is the target series (y) and the
+               second element is the features DataFrame (X).
+    """
+    x = df[FEATURES]
     y = df[TARGET]
-    return y, X
+    return y, x
 
 
 def extract_target(train_data, validation_data, test_data):
-    # Extract the target variable
+    """
+     Extracts the target column from training, validation, and test datasets.
+
+     Args:
+         train_data (pandas.DataFrame): The training dataset.
+         validation_data (pandas.DataFrame): The validation dataset.
+         test_data (pandas.DataFrame): The test dataset.
+
+     Returns:
+         tuple: A tuple containing the target series from the training, validation,
+                and test datasets in that order (y_train, y_val, y_test).
+     """
     y_train = train_data[TARGET]
     y_val = validation_data[TARGET]
     y_test = test_data[TARGET]
@@ -281,35 +356,61 @@ def extract_target(train_data, validation_data, test_data):
 
 
 def extract_features(train_data, validation_data, test_data):
+    """
+    Extracts specified features from the training, validation, and test datasets.
+
+    Args:
+        train_data (pandas.DataFrame): The training dataset.
+        validation_data (pandas.DataFrame): The validation dataset.
+        test_data (pandas.DataFrame): The test dataset.
+
+    Returns:
+        tuple: A tuple containing the features extracted from the training,
+               validation, and test datasets, respectively.
+    """
     return train_data[FEATURES], validation_data[FEATURES], test_data[FEATURES]
 
 
 def set_start_time_index(df) -> pd.DataFrame:
+    """
+        Sets the 'Start_Timestamp' column as the DataFrame's index.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to modify.
+
+        Returns:
+            pd.DataFrame: A new DataFrame with 'Start_Timestamp' set as the index.
+        """
     return df.set_index('Start_Timestamp', inplace=True)
 
 
 def set_start_date_time_index(df) -> pd.DataFrame:
+    """
+        Sets the 'Start_Timestamp' column as the DataFrame's index.
+
+        Args:
+            df (pd.DataFrame): The DataFrame to modify.
+
+        Returns:
+            pd.DataFrame: A new DataFrame with 'Start' set as the index.
+        """
     df['Start'] = pd.to_datetime(df['Start'])
     return set_start_index(df, 'Start')
 
 
-def init_pca():
-    return PCA(n_components=0.95)  # Adjust based on the explained variance
-
-
-def scale_features(train_data, validation_data, test_data):
-    # Scale the features
-    scaler = StandardScaler()
-    scaler.fit(train_data[FEATURES])  # Fit only on training data
-
-    # Scale the datasets
-    x_train_scaled = scaler.transform(train_data[FEATURES])
-    x_val_scaled = scaler.transform(validation_data[FEATURES])
-    x_test_scaled = scaler.transform(test_data[FEATURES])
-    return x_train_scaled, x_val_scaled, x_test_scaled
-
-
 def scale_features(train_data, validation_data, test_data, scaler=StandardScaler()):
+    """
+    Scales the specified features in the training, validation, and test datasets.
+
+    Args:
+        train_data (pandas.DataFrame): The training dataset.
+        validation_data (pandas.DataFrame): The validation dataset.
+        test_data (pandas.DataFrame): The test dataset.
+        scaler (sklearn.preprocessing.StandardScaler): An instance of a scaler to use. Defaults to StandardScaler()
+
+    Returns:
+        tuple: A tuple containing the scaled features for the training, validation, and test datasets.
+    """
     # Scale the features
     scaler.fit(train_data[FEATURES])  # Fit only on training data
 
@@ -320,20 +421,21 @@ def scale_features(train_data, validation_data, test_data, scaler=StandardScaler
     return x_train_scaled, x_val_scaled, x_test_scaled
 
 
-def scale_target(train_data, validation_data, test_data, scaler):
-    # Scale the features
-    scaler.fit(train_data[TARGET])  # Fit only on training data
+def split_data(df, train_ratio=0.6, validation_ratio=0.2):
+    """
+    Splits the dataset into training, validation, and test sets based on provided ratios.
 
-    # Scale the datasets
-    y_train_scaled = scaler.transform(train_data[TARGET])
-    y_val_scaled = scaler.transform(validation_data[TARGET])
-    y_test_scaled = scaler.transform(test_data[TARGET])
-    return y_train_scaled, y_val_scaled, y_test_scaled
+    Args:
+        df (pandas.DataFrame): The dataset to split.
+        train_ratio (float): The proportion of the dataset to include in the train split.
+        validation_ratio (float): The proportion of the dataset to include in the validation split.
 
+    Returns:
+        tuple: A tuple containing the training, validation, and test datasets.
 
-def split_data(df):
-    train_ratio = 0.6
-    validation_ratio = 0.2
+    Raises:
+        ValueError: If the sum of the ratios exceeds 1.
+    """
 
     # Calculate the indices for the splits
     train_end = int(len(df) * train_ratio)
@@ -348,14 +450,6 @@ def split_data(df):
     print(f"Validation set size: {validation_data.shape[0]}")
     print(f"Test set size: {test_data.shape[0]}")
     return train_data, validation_data, test_data
-
-
-def train(model, x_train, y_train):
-    model.fit(x_train, y_train)
-
-
-def predict(model, x):
-    return model.predict(x)
 
 
 def naive_mean_absolute_scaled_error(y_true, y_pred):
@@ -416,9 +510,19 @@ def evolve_error_metrics(y_true, y_pred):
 
 
 def plot_pm_true_predict(df, y_pred, name):
-    # Plotting the actual vs predicted values for validation set
+    """
+    Plots the actual versus predicted PM2.5 values.
+
+    Args:
+        df (DataFrame): DataFrame containing the actual values and timestamps.
+        y_pred (array): Array of predicted values.
+        name (str): Name of the dataset (e.g., 'Validation', 'Test') to use in the plot title.
+
+    This function creates a line plot displaying both the actual and predicted PM2.5
+    values over time, facilitating the visual comparison of model performance.
+    """
     plt.figure(figsize=(15, 5))
-    y_val = df[TARGET]
+    y_val = df[TARGET]  # Assuming 'TARGET' is the column name for actual PM2.5 values
     # Actual values - using blue color with a line marker
     plt.plot(df.index, y_val, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
 
@@ -429,27 +533,39 @@ def plot_pm_true_predict(df, y_pred, name):
     plt.xlabel('Date')
     plt.ylabel('PM2.5')
     plt.legend()
-    plt.grid()
+    plt.grid(True)  # More explicit call to enable the grid
     plt.show()
 
 
-def plot_pm_true_predict_dl(y_actual, y_pred, name):
-    # Plotting the actual vs predicted values
+def plot_pm_true_index_predict(y_actual, y_pred, name):
+    """
+    Plots the actual vs predicted PM2.5 values for a given dataset.
+
+    Args:
+        y_actual (pd.Series): A pandas Series containing the actual PM2.5 values with dates as the index.
+        y_pred (Iterable): An iterable (e.g., list or numpy array) of predicted PM2.5 values. Must match the length of y_actual.
+        name (str): The name of the dataset (e.g., 'Training', 'Validation', 'Test') to include in the plot title.
+
+    This function creates a line plot showing actual and predicted PM2.5 values to facilitate visual comparison.
+    """
+    # Ensure the predicted values align with the actual values in length
+    if len(y_actual) != len(y_pred):
+        raise ValueError("The lengths of actual and predicted values do not match.")
+
     plt.figure(figsize=(15, 5))
 
-    # Actual values - using blue color with a line marker
+    # Plot actual values
     plt.plot(y_actual.index, y_actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
 
-    # Predicted values - using red color with a cross marker
-    plt.plot(y_pred.index, y_pred, color='red', marker='x', label='Predicted', linestyle='None')
+    # Plot predicted values
+    plt.plot(y_actual.index, y_pred, color='red', marker='x', label='Predicted', linestyle='None')
 
     plt.title(f'{name} Set - Actual vs Predicted PM2.5')
     plt.xlabel('Date')
     plt.ylabel('PM2.5')
     plt.legend()
-    plt.grid()
+    plt.grid(True)
     plt.show()
-
 
 def plot_time_series(train_data, y_train, test_data, y_test, test_predictions_mean, y_test_pred, name):
     """

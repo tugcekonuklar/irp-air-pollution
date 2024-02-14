@@ -15,7 +15,7 @@ The project is structured into the following directories:
 ## Notebooks
 
 The notebooks are organized into the following categories:
-* `irp_pm_eda.ipynb`: Data preprocessing, transformation and exploratory data analysis
+* `irp_pm_eda.ipynb`: Data preprocessing, transformation and exploratory data analysis, time series decomposition, feature engineering, and visualization
 * `irp_pm_baseline.ipynb`: Naive approach baseline/benchmark model for hourly, daily, weekly, and monthly data, train/evolve 
 * `irp_pm_traditional.ipynb`: Traditional machine learning regression models (SARIMAX, MLR, SVR) for hourly, daily, weekly, and monthly data, train/evolve and tuning
 * `irp_pm_ensemble.ipynb`: Ensemble models (Random Forest, Gradient Boosting, Hist-Gradient Boosting, AdaBoost, XGBoost, CatBoost, Voting) for hourly, daily, weekly, and monthly data, train/evolve and tuning

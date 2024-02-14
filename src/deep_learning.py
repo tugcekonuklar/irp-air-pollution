@@ -16,6 +16,17 @@ import model_base as mb
 
 def plot_actual_vs_predicted(actual, pred, name='Name', title='Actual vs Predicted Values', xlabel='Time',
                              ylabel='Values'):
+    """
+    Plots actual vs. predicted values for comparison.
+
+    Args:
+        actual (Series or array-like): The actual values to plot.
+        pred (Series or array-like): The predicted values to plot.
+        name (str): Context name for the plot (e.g., dataset or model name).
+        title (str): The title of the plot.
+        xlabel (str): The label for the x-axis.
+        ylabel (str): The label for the y-axis.
+    """
     plt.figure(figsize=(15, 8))
     plt.plot(actual, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
     plt.plot(pred, color='red', marker='x', label='Predicted', linestyle='None')
@@ -42,26 +53,6 @@ def set_index_to_datetime(df, frequency='H', datetime_column_name='Start', datet
         datetime_format = '%Y-%m-%d'
     df.index = pd.to_datetime(df[datetime_column_name], format=datetime_format)
     return df
-
-
-def df_to_X_y(df, window_size=24):
-    df_values = df.values
-    X = [df_values[i:i + window_size] for i in range(len(df_values) - window_size)]
-    y = df_values[window_size:, 0]
-    print(len(np.array(X)))
-    return np.array(X), np.array(y)
-
-
-def df_to_X_y3(df, window_size=7):
-    df_as_np = df.to_numpy()
-    X = []
-    y = []
-    for i in range(len(df_as_np) - window_size):
-        row = [r for r in df_as_np[i:i + window_size]]
-        X.append(row)
-        label = [df_as_np[i + window_size][0], df_as_np[i + window_size][1]]
-        y.append(label)
-    return np.array(X), np.array(y)
 
 
 def add_time_features(df, datetime_column_name='Seconds', frequency='H'):
@@ -135,45 +126,18 @@ def preprocess_time_series(df, frequency='H',
     return df_ts
 
 
-def preprocess_and_normalize_data(df, window_size=24, train_ratio=0.6, val_ratio=0.2):
+def create_windows(data, window_size=24):
     """
-    Preprocess and normalize time series data.
+    Creates overlapping windows from the input data.
 
-    Parameters:
-        df (DataFrame): The DataFrame containing the time series data.
-        window_size (int): The window size for creating input sequences.
-        train_ratio (float): The ratio of data used for training.
-        val_ratio (float): The ratio of data used for validation.
+    Args:
+        data (np.ndarray): The input dataset, expected to be a NumPy array.
+        window_size (int): The size of each window to create.
 
     Returns:
-        numpy.ndarray: Normalized training data.
-        numpy.ndarray: Normalized validation data.
-        numpy.ndarray: Normalized testing data.
-        numpy.ndarray: Corresponding training labels.
-        numpy.ndarray: Corresponding validation labels.
-        numpy.ndarray: Corresponding testing labels.
+        tuple: A tuple containing two NumPy arrays, `X` and `y`. `X` contains the input features
+               for each window, and `y` contains the corresponding target value for each window.
     """
-    print(window_size)
-
-    X, y = df_to_X_y(df, window_size=window_size)
-
-    n = len(X)
-    X_train, y_train = X[:int(n * train_ratio)], y[:int(n * train_ratio)]
-    X_val, y_val = X[int(n * train_ratio):int(n * (train_ratio + val_ratio))], y[int(n * train_ratio):int(
-        n * (train_ratio + val_ratio))]
-    X_test, y_test = X[int(n * (train_ratio + val_ratio)):], y[int(n * (train_ratio + val_ratio)):]
-
-    X_train_mean = X_train.mean()
-    X_train_std = X_train.std()
-
-    X_train_norm = (X_train - X_train_mean) / X_train_std
-    X_val_norm = (X_val - X_train_mean) / X_train_std
-    X_test_norm = (X_test - X_train_mean) / X_train_std
-
-    return X_train_norm, X_val_norm, X_test_norm, y_train, y_val, y_test
-
-
-def create_windows(data, window_size=24):
     X, y = [], []
     for i in range(len(data) - window_size - 1):
         X.append(data[i:(i + window_size), :])
@@ -182,6 +146,19 @@ def create_windows(data, window_size=24):
 
 
 def preprocess_and_scale_data(df, window_size=24, train_ratio=0.6, val_ratio=0.2):
+    """
+    Scales the input data and splits it into training, validation, and testing sets based on provided ratios.
+
+    Args:
+        df (np.ndarray): The input dataset to preprocess.
+        window_size (int): The size of the window to use for creating sequences.
+        train_ratio (float): The ratio of the dataset to allocate for training.
+        val_ratio (float): The ratio of the dataset to allocate for validation.
+
+    Returns:
+        tuple: Tuple containing scaled and windowed training, validation, and testing feature sets (X_train, X_val, X_test),
+               corresponding target sets (y_train, y_val, y_test), and the scaler object used for inverse transformations.
+    """
     scaler = MinMaxScaler(feature_range=(0, 1))
     scaled_data = scaler.fit_transform(df)
 
@@ -195,8 +172,6 @@ def preprocess_and_scale_data(df, window_size=24, train_ratio=0.6, val_ratio=0.2
     X_val, y_val = X[train_size:train_size + validation_size], y[train_size:train_size + validation_size]
     X_test, y_test = X[train_size + validation_size:], y[train_size + validation_size:]
 
-    # Now X_train, y_train are for training; X_val, y_val are for validation; X_test, y_test are for testing
-
     preprocessing_summary = {
         "Total Data Points": len(df),
         "Training Data Size": len(X_train),
@@ -209,12 +184,6 @@ def preprocess_and_scale_data(df, window_size=24, train_ratio=0.6, val_ratio=0.2
     return X_train, X_val, X_test, y_train, y_val, y_test, scaler
 
 
-# def load_data(df, frequency='H'):
-#     window_size = {'H': 24, 'D': 30, 'W': 24, 'M': 6}
-#     df = set_index_to_datetime(df, frequency)
-#     df = preprocess_time_series(df, frequency)
-#     return preprocess_and_normalize_data(df, window_size=window_size[frequency])
-
 def load_data(df, frequency='H'):
     window_size = {'H': 24, 'D': 24, 'W': 24, 'M': 12}
     df = set_index_to_datetime(df, frequency)
@@ -224,7 +193,7 @@ def load_data(df, frequency='H'):
 
 def get_dnn_best_params(frequency='H'):
     """
-    Returns the best parameters for LSTM based on the specified frequency.
+    Returns the best parameters for DNN based on the specified frequency.
 
     Args:
     - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
@@ -234,7 +203,6 @@ def get_dnn_best_params(frequency='H'):
     """
     # Define best parameters for each frequency
     best_params = {
-        ## KEEP IT
         'H': {
             'learning_rate': 0.00014014488528467923,
             'num_layers': 3,
@@ -270,9 +238,9 @@ def get_dnn_best_params(frequency='H'):
 
 
 ## DNN
-def build_and_tune_dnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10, frequency='H'):
+def build_and_tune_dnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10):
     """
-    Build and tune an dnn model using Keras Tuner.
+    Build and tune an DNN model using Keras Tuner.
 
     Parameters:
         X_train (numpy.ndarray): Training data.
@@ -326,6 +294,21 @@ def build_and_tune_dnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
 
 def build_best_dnn_model(y_train, learning_rate=0.0004489034857354316, num_layers=3, units=[320, 32, 32],
                          activations=['relu', 'relu', 'relu'], dropout=False):
+    """
+    Builds a sequential DNN model based on specified parameters, including optional dropout.
+
+    Args:
+        y_train (np.ndarray): The training dataset target values, used to set the output layer size.
+        learning_rate (float): The learning rate for the Adam optimizer.
+        num_layers (int): The number of dense layers to include in the model.
+        units (list of int): The number of neurons in each dense layer.
+        activations (list of str): The activation functions for each dense layer.
+        dropout (bool): Whether to include a dropout layer.
+        dropout_rate (float): The rate of dropout, if dropout is enabled.
+
+    Returns:
+        A compiled TensorFlow Keras model.
+    """
     model = Sequential()
     model.add(layers.Flatten())
     for i in range(num_layers):
@@ -344,6 +327,13 @@ def build_best_dnn_model(y_train, learning_rate=0.0004489034857354316, num_layer
 
 
 def dnn_train_and_evaluate(df, frequency='H'):
+    """
+    Trains and evaluates a DNN model based on the specified dataset and frequency.
+
+    Args:
+        df (DataFrame): The input dataset.
+        frequency (str): The frequency of the dataset, influencing model training and evaluation.
+    """
     X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_params = get_dnn_best_params(frequency)
@@ -438,11 +428,6 @@ def get_lstm_best_params(frequency):
             'dropout': True,
         },
         'W': {
-            # 'learning_rate': 0.002737350599350577,
-            # 'num_layers': 5,
-            # 'units': [416, 192, 448, 448, 192],
-            # 'activations': ['tanh', 'relu', 'relu', 'relu', 'relu'],
-            # 'dropout': False,
             'learning_rate': 0.0009513380195031257,
             'num_layers': 6,
             'units': [480, 160, 64, 224, 512, 384],
@@ -462,7 +447,7 @@ def get_lstm_best_params(frequency):
     return best_params.get(frequency, "Invalid frequency")
 
 
-def build_and_tune_lstm_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10, frequency='H'):
+def build_and_tune_lstm_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10):
     """
     Build and tune an LSTM model using Keras Tuner.
 
@@ -527,6 +512,21 @@ def build_and_tune_lstm_model(X_train, y_train, X_val, y_val, max_trials=5, num_
 
 def build_best_lstm_model(X_train, y_train, learning_rate=0.0004489034857354316, num_layers=3, units=[320, 32, 32],
                           activations=['relu', 'relu', 'relu'], dropout=False):
+    """
+    Builds a sequential LSTM model based on specified parameters, including optional dropout.
+
+    Args:
+        y_train (np.ndarray): The training dataset target values, used to set the output layer size.
+        learning_rate (float): The learning rate for the Adam optimizer.
+        num_layers (int): The number of dense layers to include in the model.
+        units (list of int): The number of neurons in each dense layer.
+        activations (list of str): The activation functions for each dense layer.
+        dropout (bool): Whether to include a dropout layer.
+        dropout_rate (float): The rate of dropout, if dropout is enabled.
+
+    Returns:
+        A compiled TensorFlow Keras model.
+    """
     model = Sequential()
     model.add(layers.InputLayer((X_train.shape[1], X_train.shape[2])))
     model.add(layers.LSTM(units[0], activations[0]))
@@ -548,6 +548,13 @@ def build_best_lstm_model(X_train, y_train, learning_rate=0.0004489034857354316,
 
 
 def lstm_train_and_evaluate(df, frequency='H'):
+    """
+    Trains and evaluates a LSTM model based on the specified dataset and frequency.
+
+    Args:
+        df (DataFrame): The input dataset.
+        frequency (str): The frequency of the dataset, influencing model training and evaluation.
+    """
     X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_params = get_lstm_best_params(frequency)
@@ -615,7 +622,7 @@ def lstm_tune_and_evolve(df, frequency='H'):
 
 def get_cnn_best_params(frequency):
     """
-    Returns the best parameters for LSTM based on the specified frequency.
+    Returns the best parameters for CNN based on the specified frequency.
 
     Args:
     - frequency (str): The frequency for which to get the best parameters. Options are 'H', 'D', 'W', 'M'.
@@ -659,7 +666,7 @@ def get_cnn_best_params(frequency):
     return best_params.get(frequency, "Invalid frequency")
 
 
-def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10, frequency='H'):
+def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_epochs=10):
     """
     Build and tune an CNN model using Keras Tuner.
 
@@ -726,6 +733,21 @@ def build_and_tune_cnn_model(X_train, y_train, X_val, y_val, max_trials=5, num_e
 
 def build_best_cnn_model(X_train, y_train, learning_rate=0.0004489034857354316, num_layers=3, units=[64, 32, 32],
                          activations=['relu', 'relu', 'relu', 'relu'], dropout=False):
+    """
+    Builds a sequential CNN model based on specified parameters, including optional dropout.
+
+    Args:
+        y_train (np.ndarray): The training dataset target values, used to set the output layer size.
+        learning_rate (float): The learning rate for the Adam optimizer.
+        num_layers (int): The number of dense layers to include in the model.
+        units (list of int): The number of neurons in each dense layer.
+        activations (list of str): The activation functions for each dense layer.
+        dropout (bool): Whether to include a dropout layer.
+        dropout_rate (float): The rate of dropout, if dropout is enabled.
+
+    Returns:
+        A compiled TensorFlow Keras model.
+    """
     shape = y_train.shape[1]
     model = Sequential()
     model.add(layers.InputLayer((X_train.shape[1], X_train.shape[2])))
@@ -748,6 +770,13 @@ def build_best_cnn_model(X_train, y_train, learning_rate=0.0004489034857354316, 
 
 
 def cnn_train_and_evaluate(df, frequency='H'):
+    """
+    Trains and evaluates a CNN model based on the specified dataset and frequency.
+
+    Args:
+        df (DataFrame): The input dataset.
+        frequency (str): The frequency of the dataset, influencing model training and evaluation.
+    """
     X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_params = get_cnn_best_params(frequency)
@@ -805,7 +834,5 @@ def cnn_train_and_evaluate(df, frequency='H'):
 
 def cnn_tune_and_evolve(df, frequency='H'):
     X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
-
     best_model, best_hp = build_and_tune_cnn_model(X_train, y_train, X_val, y_val)
-
     return best_model, best_hp

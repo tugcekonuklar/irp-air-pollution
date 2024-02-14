@@ -522,7 +522,7 @@ def plot_pm_true_predict(df, y_pred, name):
     values over time, facilitating the visual comparison of model performance.
     """
     plt.figure(figsize=(15, 5))
-    y_val = df[TARGET]  # Assuming 'TARGET' is the column name for actual PM2.5 values
+    y_val = df[TARGET]
     # Actual values - using blue color with a line marker
     plt.plot(df.index, y_val, color='blue', marker='o', label='Actual', linestyle='-', linewidth=1)
 

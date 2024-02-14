@@ -12,6 +12,24 @@ The project is structured into the following directories:
 * `src/notebooks`: Contains Jupyter notebooks for data analysis, visualization, and model training
 * `src`: Contains Python classes and methods for data processing, model definition, training, tuning, evaluations, and forecasting
 
+## Notebooks
+
+The notebooks are organized into the following categories:
+* `irp_pm_eda.ipynb`: Data preprocessing, transformation and exploratory data analysis
+* `irp_pm_baseline.ipynb`: Naive approach baseline/benchmark model for hourly, daily, weekly, and monthly data, train/evolve 
+* `irp_pm_traditional.ipynb`: Traditional machine learning regression models (SARIMAX, MLR, SVR) for hourly, daily, weekly, and monthly data, train/evolve and tuning
+* `irp_pm_ensemble.ipynb`: Ensemble models (Random Forest, Gradient Boosting, Hist-Gradient Boosting, AdaBoost, XGBoost, CatBoost, Voting) for hourly, daily, weekly, and monthly data, train/evolve and tuning
+* `irp_pm_dl.ipynb`: Deep learning models (DNN,LSTM, CNN) for hourly, daily, weekly, and monthly data, train/evolve and tuning
+
+## Python Classes and Methods
+
+The `src` directory contains the following Python classes and methods:
+* `eda.py`: Data preprocessing, transformation and exploratory data analysis
+* `model_base.py`: Contains methods for data transformation, helper methods and visualization
+* `traditional.py`: Contains methods for traditional model for hourly, daily, weekly, and monthly data to train/evolve and tuning
+* `ensemble.py`: Contains methods for ensemble models for hourly, daily, weekly, and monthly data to train/evolve and tuning
+* `deep_learning.py`: Contains methods for deep learning models for hourly, daily, weekly, and monthly data to train/evolve and tuning
+* `init.py`: Contains the initialization of the package
 
 ## Data
 
@@ -22,7 +40,7 @@ The data is available in the `data` directory and is organized into the followin
 * Transformed data in csv format is also available in the `data` directory
 
 
-## Best Performed Model
+## Best Performed Models
 
 The best-performed models are saved in the `models` directory. The models are saved in the following formats:
 * .pkl: Python pickle format

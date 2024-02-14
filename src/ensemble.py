@@ -404,6 +404,19 @@ def get_randomforest_distribution():
 
 
 def init_ensemble_model(algorithm: str, frequency='H'):
+    """
+    Initializes an ensemble model based on the specified algorithm and data frequency.
+
+    Args:
+        algorithm (str): Identifier of the ensemble algorithm to initialize.
+        frequency (str): Data frequency, used to tailor the model configuration.
+
+    Returns:
+        A configured model pipeline.
+
+    Raises:
+        ValueError: If an unknown algorithm identifier is provided.
+    """
     if algorithm == GRADIENT_BOOSTING:
         return Pipeline([
             ('scaler', StandardScaler()),
@@ -440,6 +453,18 @@ def init_ensemble_model(algorithm: str, frequency='H'):
 
 
 def get_param_distribution_by_algorithm(algorithm: str):
+    """
+    Returns the parameter distribution for a given algorithm.
+
+    Args:
+        algorithm (str): The identifier of the algorithm.
+
+    Returns:
+        dict: The parameter distribution for the specified algorithm.
+
+    Raises:
+        ValueError: If an unknown algorithm identifier is provided.
+    """
     if algorithm == GRADIENT_BOOSTING:
         return get_gb_param_distribution()
     elif algorithm == HISTOGRAM_GRADIENT_BOOSTING:
@@ -457,6 +482,14 @@ def get_param_distribution_by_algorithm(algorithm: str):
 
 
 def tune_and_evaluate(df, ensemble_alg: str, frequency='H'):
+    """
+    Tunes and evaluates an ensemble model based on specified algorithm and frequency.
+
+    Args:
+        df (DataFrame): The input dataset.
+        ensemble_alg (str): The ensemble algorithm identifier (e.g., 'ADABOOST', 'RANDOMFOREST').
+        frequency (str): The data frequency, used for custom model initialization.
+    """
     n_iter_search = 10
     random_state = 42
 
@@ -519,6 +552,15 @@ def tune_and_evaluate(df, ensemble_alg: str, frequency='H'):
 
 
 def train_and_evolve(df, ensemble_alg: str, frequency='H'):
+    """
+    Trains a ensemble regressor model using various ensemble and regression techniques,
+    evaluates its performance on validation and test datasets, and saves the model.
+
+    Args:
+        df (DataFrame): The input dataset.
+        ensemble_alg (str): algorithm's name
+        frequency (str): The frequency of the dataset, used to tailor model initialization.
+    """
     train_data, validation_data, test_data = mb.split_data(df)
     # Extract the features
     X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
@@ -555,6 +597,14 @@ def train_and_evolve(df, ensemble_alg: str, frequency='H'):
 
 
 def train_and_evolve_bagging(df, frequency='H'):
+    """
+    Trains a bagging regressor model using various ensemble and regression techniques,
+    evaluates its performance on validation and test datasets, and saves the model.
+
+    Args:
+        df (DataFrame): The input dataset.
+        frequency (str): The frequency of the dataset, used to tailor model initialization.
+    """
     train_data, validation_data, test_data = mb.split_data(df)
     # Extract the features
     X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
@@ -587,6 +637,14 @@ def train_and_evolve_bagging(df, frequency='H'):
 
 
 def voting_train_and_evolve(df, frequency='H'):
+    """
+    Trains a voting regressor model using various ensemble and regression techniques,
+    evaluates its performance on validation and test datasets, and saves the model.
+
+    Args:
+        df (DataFrame): The input dataset.
+        frequency (str): The frequency of the dataset, used to tailor model initialization.
+    """
     train_data, validation_data, test_data = mb.split_data(df)
     # Extract the features
     X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)

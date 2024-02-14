@@ -144,6 +144,8 @@ def sarimax_train_and_evolve(df, frequency='H'):
     mb.plot_pm_true_index_predict(y_val, val_predictions, 'Validation')
     mb.plot_pm_true_index_predict(y_test, test_predictions, 'Test')
 
+    mb.save_model_to_pickle(model, f'sarimax_model_{frequency}.pkl')
+
 
 def tune_sarimax(df, max_p=7, max_d=5, max_q=7):
     """
@@ -184,7 +186,7 @@ def init_linear_model():
     return LinearRegression()
 
 
-def linear_train_and_evolve(df, model=init_linear_model()):
+def linear_train_and_evolve(df, frequency='H', model=init_linear_model()):
     """
     Trains a Multiple Linear Regression model and evaluates its performance on validation and test sets after
     applying feature scaling and PCA for dimensionality reduction.
@@ -225,6 +227,7 @@ def linear_train_and_evolve(df, model=init_linear_model()):
 
     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
+    mb.save_model_to_pickle(model, f'mlr_model_{frequency}.pkl')
 
 
 def get_svr_best_params(frequency):
@@ -388,3 +391,4 @@ def svr_train_and_evolve(df, frequency='H'):
 
     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
+    mb.save_model_to_pickle(pipeline, f'svr_model_{frequency}.pkl')

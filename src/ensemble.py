@@ -551,6 +551,8 @@ def train_and_evolve(df, ensemble_alg: str, frequency='H'):
     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
 
+    mb.save_model_to_pickle(model, f'{ensemble_alg}_model_{frequency}.pkl')
+
 
 def train_and_evolve_bagging(df, frequency='H'):
     train_data, validation_data, test_data = mb.split_data(df)
@@ -580,6 +582,8 @@ def train_and_evolve_bagging(df, frequency='H'):
     # Plot
     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
+
+    mb.save_model_to_pickle(model, f'randomforest_model_{frequency}.pkl')
 
 
 def voting_train_and_evolve(df, frequency='H'):
@@ -628,3 +632,5 @@ def voting_train_and_evolve(df, frequency='H'):
     # Plot
     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
+
+    mb.save_model_to_pickle(model, f'voting_model_{frequency}.pkl')

@@ -1,5 +1,6 @@
 import warnings
 import os
+import pickle
 import pyarrow.parquet as pq
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,6 +25,19 @@ WEEKLY_TIMESTAMP_FILE_PATH = '../data/WEEKLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.c
 MONTHLY_DATETIME_FILE_PATH = '../data/MONTLY_DATETIME_CLEAN_MERGED_DE_DEBB021.csv'
 MONTHLY_TIMESTAMP_FILE_PATH = '../data/MONTLY_TIMESTAMP_CLEAN_MERGED_DE_DEBB021.csv'
 
+
+
+def save_model_to_pickle(model, file_path):
+    """
+    Saves a machine learning model to a file using pickle.
+
+    Args:
+        model: The machine learning model to be saved.
+        file_path (str): The path (including file name) where the model should be saved.
+    """
+    with open(f'../models/{file_path}', 'wb') as file:
+        pickle.dump(model, file)
+    print(f"Model saved to {file_path}")
 
 def convert_parquet_to_csv(input_folder="../data/parquet", output_folder="../data/csv"):
     """

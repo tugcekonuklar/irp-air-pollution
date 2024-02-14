@@ -390,6 +390,8 @@ def dnn_train_and_evaluate(df, frequency='H'):
     mb.evolve_error_metrics(test_pred, test_actual)
     mb.naive_mean_absolute_scaled_error(test_pred, test_actual)
 
+    mb.save_model_to_pickle(model, f'dnn_model_{frequency}.pkl')
+
 
 def dnn_tune_and_evolve(df, frequency='H'):
     X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
@@ -607,6 +609,8 @@ def lstm_train_and_evaluate(df, frequency='H'):
     # Error Metric for Validation
     mb.evolve_error_metrics(test_pred, test_actual)
     mb.naive_mean_absolute_scaled_error(test_pred, test_actual)
+
+    mb.save_model_to_pickle(model, f'lstm_model_{frequency}.pkl')
 
 
 def lstm_tune_and_evolve(df, frequency='H'):
@@ -830,6 +834,8 @@ def cnn_train_and_evaluate(df, frequency='H'):
     # Error Metric for Validation
     mb.evolve_error_metrics(test_pred, test_actual)
     mb.naive_mean_absolute_scaled_error(test_pred, test_actual)
+
+    mb.save_model_to_pickle(model, f'cnn_model_{frequency}.pkl')
 
 
 def cnn_tune_and_evolve(df, frequency='H'):

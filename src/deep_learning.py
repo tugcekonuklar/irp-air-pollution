@@ -394,6 +394,16 @@ def dnn_train_and_evaluate(df, frequency='H'):
 
 
 def dnn_tune_and_evolve(df, frequency='H'):
+    """
+    Loads the dataset, tunes a DNN model based on the training data, and evaluates it on the validation set.
+
+    Args:
+        df (DataFrame): The dataset to be used for training and evaluation.
+        frequency (str): The sampling frequency of the data, used to tailor the data loading process.
+
+    Returns:
+        tuple: A tuple containing the best DNN model and its hyperparameters after tuning.
+    """
     X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_model, best_hp = build_and_tune_dnn_model(X_train, y_train, X_val, y_val)
@@ -614,6 +624,16 @@ def lstm_train_and_evaluate(df, frequency='H'):
 
 
 def lstm_tune_and_evolve(df, frequency='H'):
+    """
+    Loads the dataset, tunes a LSTM model based on the training data, and evaluates it on the validation set.
+
+    Args:
+        df (DataFrame): The dataset to be used for training and evaluation.
+        frequency (str): The sampling frequency of the data, used to tailor the data loading process.
+
+    Returns:
+        tuple: A tuple containing the best LSTM model and its hyperparameters after tuning.
+    """
     X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
 
     best_model, best_hp = build_and_tune_lstm_model(X_train, y_train, X_val, y_val)
@@ -839,6 +859,16 @@ def cnn_train_and_evaluate(df, frequency='H'):
 
 
 def cnn_tune_and_evolve(df, frequency='H'):
+    """
+    Loads the dataset, tunes a CNN model based on the training data, and evaluates it on the validation set.
+
+    Args:
+        df (DataFrame): The dataset to be used for training and evaluation.
+        frequency (str): The sampling frequency of the data, used to tailor the data loading process.
+
+    Returns:
+        tuple: A tuple containing the best CNN model and its hyperparameters after tuning.
+    """
     X_train, X_val, X_test, y_train, y_val, y_test, scaler = load_data(df, frequency)
     best_model, best_hp = build_and_tune_cnn_model(X_train, y_train, X_val, y_val)
     return best_model, best_hp

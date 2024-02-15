@@ -566,33 +566,22 @@ def train_and_evolve(df, ensemble_alg: str, frequency='H'):
     X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
     # Extract the target variable
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-
     model = init_ensemble_model(ensemble_alg, frequency)
     # Fit the model on training data
     model.fit(X_train, y_train)
-
     # VALIDATION Prediction and Evolution
     y_val_pred = model.predict(X_val)
-
-    # print(y_val_pred)
-
     # Validation Error Metric
     mb.evolve_error_metrics(y_val, y_val_pred)
     mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
-
     # TEST Prediction and Evolution
     y_test_pred = model.predict(X_test)
-
-    # print(y_test_pred)
-
     # Test Error Metric
     mb.evolve_error_metrics(y_test, y_test_pred)
     mb.naive_mean_absolute_scaled_error(y_test, y_test_pred)
-
     # Plot
     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
-
     mb.save_model_to_pickle(model, f'{ensemble_alg}_model_{frequency}.pkl')
 
 

@@ -1,12 +1,8 @@
 from datetime import datetime
 
 import numpy as np
-import xgboost as xgb
-from catboost import CatBoostRegressor
 from scipy.stats import randint as sp_randint, uniform
-from sklearn.decomposition import PCA
-from sklearn.ensemble import GradientBoostingRegressor, HistGradientBoostingRegressor, AdaBoostRegressor, \
-    RandomForestRegressor, VotingRegressor
+from sklearn.ensemble import AdaBoostRegressor, RandomForestRegressor, VotingRegressor
 from sklearn.model_selection import RandomizedSearchCV
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.pipeline import Pipeline
@@ -15,13 +11,9 @@ from sklearn.tree import DecisionTreeRegressor
 
 import model_base as mb
 import traditional as td
-
-GRADIENT_BOOSTING = 'gradient_boosting'
-HISTOGRAM_GRADIENT_BOOSTING = 'histogram_gradient_boosting'
-XGBOOST = 'xgboost'
-ADABOOST = 'adaboost'
-CATBOOST = 'catboost'
-RANDOMFOREST = 'randomforest'
+from ensemble_models import GradientBoostingModel, HistGradientBoostingModel, AdaBoostingModel, RandomForestModel, \
+    XGBoostModel, CatBoostModel
+from enums import EnsembleModels
 
 
 def get_gbr_best_params(frequency):
@@ -288,60 +280,6 @@ def get_random_forest_best_params(frequency):
     return best_params.get(frequency, "Invalid frequency")
 
 
-def get_gbr_model(frequency):
-    best_params = get_gbr_best_params(frequency)
-    return ('gbr', GradientBoostingRegressor(learning_rate=best_params['learning_rate'],
-                                             max_depth=best_params['max_depth'],
-                                             min_samples_leaf=best_params['min_samples_leaf'],
-                                             min_samples_split=best_params['min_samples_split'],
-                                             n_estimators=best_params['n_estimators']))
-
-
-def get_hist_gbr_model(frequency):
-    best_params = get_hist_gbr_best_params(frequency)
-    return ('hist_gbr', HistGradientBoostingRegressor(learning_rate=best_params['learning_rate'],
-                                                      max_depth=best_params['max_depth'],
-                                                      max_iter=best_params['max_iter'],
-                                                      min_samples_leaf=best_params['min_samples_leaf']))
-
-
-def get_xgb_model(frequency):
-    best_params = get_xgb_best_params(frequency)
-    return ('xgb', xgb.XGBRegressor(n_estimators=best_params['n_estimators'],
-                                    max_depth=best_params['max_depth'],
-                                    learning_rate=best_params['learning_rate'],
-                                    subsample=best_params['subsample'],
-                                    colsample_bytree=best_params['colsample_bytree'],
-                                    min_child_weight=best_params['min_child_weight']))
-
-
-def get_ada_model(frequency):
-    best_params = get_ada_best_params(frequency)
-    return AdaBoostRegressor(DecisionTreeRegressor(max_depth=best_params['max_depth']),
-                             learning_rate=best_params['learning_rate'],
-                             n_estimators=best_params['n_estimators'])
-
-
-def get_cat_model(frequency):
-    best_params = get_cat_best_params(frequency)
-    return CatBoostRegressor(learning_rate=best_params['learning_rate'],
-                             l2_leaf_reg=best_params['l2_leaf_reg'],
-                             iterations=best_params['iterations'],
-                             depth=best_params['depth'])
-
-
-def get_random_forest_model(frequency):
-    best_params = get_random_forest_best_params(frequency)
-    return RandomForestRegressor(
-        n_estimators=best_params['n_estimators'],
-        max_depth=best_params['max_depth'],
-        min_samples_leaf=best_params['min_samples_leaf'],
-        min_samples_split=best_params['min_samples_split'],
-        max_features=best_params['max_features'],
-        # random_state=42  # Use a fixed seed for reproducibility
-    )
-
-
 def get_gb_param_distribution():
     return {
         'pca__n_components': [0.95, 0.99],
@@ -403,55 +341,6 @@ def get_randomforest_distribution():
     }
 
 
-def init_ensemble_model(algorithm: str, frequency='H'):
-    """
-    Initializes an ensemble model based on the specified algorithm and data frequency.
-
-    Args:
-        algorithm (str): Identifier of the ensemble algorithm to initialize.
-        frequency (str): Data frequency, used to tailor the model configuration.
-
-    Returns:
-        A configured model pipeline.
-
-    Raises:
-        ValueError: If an unknown algorithm identifier is provided.
-    """
-    if algorithm == GRADIENT_BOOSTING:
-        return Pipeline([
-            ('scaler', StandardScaler()),
-            ('pca', PCA(n_components=0.95)),
-            get_gbr_model(frequency)
-        ])
-    elif algorithm == HISTOGRAM_GRADIENT_BOOSTING:
-        return Pipeline([
-            ('scaler', StandardScaler()),
-            ('pca', PCA(n_components=0.95)),
-            get_hist_gbr_model(frequency)
-        ])
-    elif algorithm == XGBOOST:
-        return Pipeline([
-            ('scaler', StandardScaler()),
-            ('pca', PCA(n_components=4)),
-            get_xgb_model(frequency)
-        ])
-    elif algorithm == ADABOOST:
-        return Pipeline([
-            ('scaler', StandardScaler()),
-            ('adaboost', get_ada_model(frequency))
-        ])
-    elif algorithm == CATBOOST:
-        return get_cat_model(frequency)
-    elif algorithm == RANDOMFOREST:
-        return Pipeline([
-            ('scaler', StandardScaler()),
-            ('pca', PCA(n_components=0.95)),
-            get_random_forest_model(frequency)
-        ])
-    else:
-        raise ValueError("Unknown algorithm enum provided!")
-
-
 def get_param_distribution_by_algorithm(algorithm: str):
     """
     Returns the parameter distribution for a given algorithm.
@@ -465,17 +354,17 @@ def get_param_distribution_by_algorithm(algorithm: str):
     Raises:
         ValueError: If an unknown algorithm identifier is provided.
     """
-    if algorithm == GRADIENT_BOOSTING:
+    if algorithm == EnsembleModels.GRADIENT_BOOSTING:
         return get_gb_param_distribution()
-    elif algorithm == HISTOGRAM_GRADIENT_BOOSTING:
+    elif algorithm == EnsembleModels.HISTOGRAM_GRADIENT_BOOSTING:
         return get_hist_gb_param_distribution()
-    elif algorithm == XGBOOST:
+    elif algorithm == EnsembleModels.XGBOOST:
         return get_xgb_param_distribution()
-    elif algorithm == ADABOOST:
+    elif algorithm == EnsembleModels.ADABOOST:
         return get_ada_param_distribution()
-    elif algorithm == CATBOOST:
+    elif algorithm == EnsembleModels.CATBOOST:
         return get_catboost_distribution()
-    elif algorithm == RANDOMFOREST:
+    elif algorithm == EnsembleModels.RANDOM_FOREST:
         return get_randomforest_distribution()
     else:
         raise ValueError("Unknown algorithm enum provided!")
@@ -503,15 +392,15 @@ def tune_and_evaluate(df, ensemble_alg: str, frequency='H'):
     print(f'Started {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}')
 
     model = None
-    if ensemble_alg == ADABOOST:
+    if ensemble_alg == EnsembleModels.ADABOOST:
         model = Pipeline([
             ('scaler', StandardScaler()),
             ('adaboost', AdaBoostRegressor(DecisionTreeRegressor(), random_state=42))
         ])
-    elif ensemble_alg == RANDOMFOREST:
+    elif ensemble_alg == EnsembleModels.RANDOM_FOREST:
         model = RandomForestRegressor()
     else:
-        model = init_ensemble_model(ensemble_alg, frequency)
+        model = init_ensemble_model(ensemble_alg, frequency).model
 
     # Define the parameter space for the grid search
     param_distributions = get_param_distribution_by_algorithm(ensemble_alg)
@@ -551,6 +440,37 @@ def tune_and_evaluate(df, ensemble_alg: str, frequency='H'):
     return random_search.best_estimator_
 
 
+def init_ensemble_model(algorithm_str: str, frequency='H'):
+    """
+    Initializes an ensemble model based on the specified algorithm and data frequency.
+
+    Args:
+        algorithm_str (str): Identifier of the ensemble algorithm to initialize.
+        frequency (str): Data frequency, used to tailor the model configuration.
+
+    Returns:
+        A configured model pipeline.
+
+    Raises:
+        ValueError: If an unknown algorithm identifier is provided.
+    """
+    algorithm = EnsembleModels.get_by_value(algorithm_str)
+    if algorithm == EnsembleModels.GRADIENT_BOOSTING:
+        return GradientBoostingModel(best_params=get_gbr_best_params(frequency))
+    elif algorithm == EnsembleModels.HISTOGRAM_GRADIENT_BOOSTING:
+        return HistGradientBoostingModel(best_params=get_hist_gbr_best_params(frequency))
+    elif algorithm == EnsembleModels.XGBOOST:
+        return XGBoostModel(best_params=get_xgb_best_params(frequency))
+    elif algorithm == EnsembleModels.ADABOOST:
+        return AdaBoostingModel(best_params=get_ada_best_params(frequency))
+    elif algorithm == EnsembleModels.CATBOOST:
+        return CatBoostModel(best_params=get_cat_best_params(frequency))
+    elif algorithm == EnsembleModels.RANDOM_FOREST:
+        return RandomForestModel(best_params=get_random_forest_best_params(frequency))
+    else:
+        raise ValueError("Unknown algorithm enum provided!")
+
+
 def train_and_evolve(df, ensemble_alg: str, frequency='H'):
     """
     Trains a ensemble regressor model using various ensemble and regression techniques,
@@ -568,61 +488,15 @@ def train_and_evolve(df, ensemble_alg: str, frequency='H'):
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
     model = init_ensemble_model(ensemble_alg, frequency)
     # Fit the model on training data
-    model.fit(X_train, y_train)
+    model.train(X_train, y_train)
     # VALIDATION Prediction and Evolution
-    y_val_pred = model.predict(X_val)
-    # Validation Error Metric
-    mb.evolve_error_metrics(y_val, y_val_pred)
-    mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
+    y_val_pred = model.evaluate(X_val, y_val)
     # TEST Prediction and Evolution
-    y_test_pred = model.predict(X_test)
-    # Test Error Metric
-    mb.evolve_error_metrics(y_test, y_test_pred)
-    mb.naive_mean_absolute_scaled_error(y_test, y_test_pred)
+    y_test_pred = model.evaluate(X_test, y_test)
     # Plot
     mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
     mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
-    mb.save_model_to_pickle(model, f'{ensemble_alg}_model_{frequency}.pkl')
-
-
-def train_and_evolve_bagging(df, frequency='H'):
-    """
-    Trains a bagging regressor model using various ensemble and regression techniques,
-    evaluates its performance on validation and test datasets, and saves the model.
-
-    Args:
-        df (DataFrame): The input dataset.
-        frequency (str): The frequency of the dataset, used to tailor model initialization.
-    """
-    train_data, validation_data, test_data = mb.split_data(df)
-    # Extract the features
-    X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
-    # Extract the target variable
-    y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-
-    model = get_random_forest_model(frequency)
-    # Fit the model on training data
-    model.fit(X_train, y_train)
-
-    # VALIDATION Prediction and Evolution
-    y_val_pred = model.predict(X_val)
-
-    # Validation Error Metric
-    mb.evolve_error_metrics(y_val, y_val_pred)
-    mb.naive_mean_absolute_scaled_error(y_val, y_val_pred)
-
-    # TEST Prediction and Evolution
-    y_test_pred = model.predict(X_test)
-
-    # Test Error Metric
-    mb.evolve_error_metrics(y_test, y_test_pred)
-    mb.naive_mean_absolute_scaled_error(y_test, y_test_pred)
-
-    # Plot
-    mb.plot_pm_true_predict(validation_data, y_val_pred, 'Validation')
-    mb.plot_pm_true_predict(test_data, y_test_pred, 'Test')
-
-    mb.save_model_to_pickle(model, f'randomforest_model_{frequency}.pkl')
+    # mb.save_model_to_pickle(model, f'{ensemble_alg}_model_{frequency}.pkl')
 
 
 def voting_train_and_evolve(df, frequency='H'):
@@ -639,12 +513,12 @@ def voting_train_and_evolve(df, frequency='H'):
     X_train, X_val, X_test = mb.extract_features(train_data, validation_data, test_data)
     # Extract the target variable
     y_train, y_val, y_test = mb.extract_target(train_data, validation_data, test_data)
-    model_gb = init_ensemble_model(GRADIENT_BOOSTING, frequency)
-    model_hist_gb = init_ensemble_model(HISTOGRAM_GRADIENT_BOOSTING, frequency)
-    model_xgb = init_ensemble_model(XGBOOST, frequency)
-    model_ada = init_ensemble_model(ADABOOST, frequency)
-    model_cat = init_ensemble_model(CATBOOST, frequency)
-    model_rf = get_random_forest_model(frequency)  # init_ensemble_model(RANDOMFOREST, frequency)
+    model_gb = init_ensemble_model(EnsembleModels.GRADIENT_BOOSTING.value, frequency).model
+    model_hist_gb = init_ensemble_model(EnsembleModels.HISTOGRAM_GRADIENT_BOOSTING.value, frequency).model
+    model_xgb = init_ensemble_model(EnsembleModels.XGBOOST.value, frequency).model
+    model_ada = init_ensemble_model(EnsembleModels.ADABOOST.value, frequency).model
+    model_cat = init_ensemble_model(EnsembleModels.CATBOOST.value, frequency).model
+    model_rf = init_ensemble_model(EnsembleModels.RANDOM_FOREST.value, frequency).model
     model_svr = td.init_svr(frequency)
     model_lr = td.init_linear_model()
 

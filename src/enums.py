@@ -22,6 +22,7 @@ class EnsembleModels(Enum):
     ADABOOST = 'adaboost'
     CATBOOST = 'catboost'
     RANDOM_FOREST = 'random_forest'
+    VOTING = 'voting'
 
     @classmethod
     def get_by_value(cls, value):

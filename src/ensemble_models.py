@@ -147,3 +147,9 @@ class CatBoostModel(BaseEnsembleModel):
                                  l2_leaf_reg=best_params.get('l2_leaf_reg', 3),
                                  iterations=best_params.get('iterations', 200),
                                  depth=best_params.get('depth', 4))
+
+
+class VotingModel(BaseEnsembleModel):
+    def __init__(self, model, best_params=None):
+        self.model = model
+        super().__init__("VotingModel", self.model, best_params)

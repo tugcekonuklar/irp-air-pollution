@@ -9,6 +9,7 @@ from catboost import CatBoostRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.model_selection import RandomizedSearchCV
 from src.models.base_model import BaseModel
+from datetime import datetime
 import src.model_base as mb
 
 
@@ -34,14 +35,21 @@ class BaseEnsembleModel(BaseModel):
     def tune(self, X_train, y_train, param_distributions=None):
         if param_distributions is None:
             raise ValueError("Parameter distributions not defined.")
+        print(f"Tuning {self.name} model, started at {datetime.now()}")
         n_iter = 10
         cv = TimeSeriesSplit(n_splits=5)
         tuner = RandomizedSearchCV(self.model, param_distributions=param_distributions,
                                    n_iter=n_iter, scoring='neg_mean_squared_error',
                                    cv=cv, n_jobs=1, random_state=42, verbose=1)
+        try:
+            tuner.fit(X_train, y_train)
+        except Exception as ex:
+            print(f'Error tuning {self.name} model: {ex}')
+        print(f"Tuning {self.name} model, finished at {datetime.now()}")
+        print(f"Best parameters for {self.name} : {tuner.best_params_}")
+        print(f"Best score {self.name} : {-tuner.best_score_}")
 
-        tuner.fit(X_train, y_train)
-        self.best_estimator = tuner.best_estimator_
+        return tuner.best_estimator_
 
 
 class GradientBoostingModel(BaseEnsembleModel):

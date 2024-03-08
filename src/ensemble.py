@@ -11,7 +11,7 @@ from sklearn.tree import DecisionTreeRegressor
 
 import model_base as mb
 import traditional as td
-from ensemble_models import GradientBoostingModel, HistGradientBoostingModel, AdaBoostingModel, RandomForestModel, \
+from src.models.ensemble_models import GradientBoostingModel, HistGradientBoostingModel, AdaBoostingModel, RandomForestModel, \
     XGBoostModel, CatBoostModel
 from enums import EnsembleModels
 

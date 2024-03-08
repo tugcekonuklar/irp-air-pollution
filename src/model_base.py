@@ -35,7 +35,7 @@ def save_model_to_pickle(model, file_path):
         model: The machine learning model to be saved.
         file_path (str): The path (including file name) where the model should be saved.
     """
-    with open(f'../models/{file_path}', 'wb') as file:
+    with open(f'../best_models/{file_path}', 'wb') as file:
         pickle.dump(model, file)
     print(f"Model saved to {file_path}")
 

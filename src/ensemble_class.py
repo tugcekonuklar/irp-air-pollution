@@ -1,6 +1,6 @@
 from datetime import datetime
 from sklearn.ensemble import VotingRegressor
-from ensemble_models import GradientBoostingModel, HistGradientBoostingModel, AdaBoostingModel, RandomForestModel, \
+from src.models.ensemble_models import GradientBoostingModel, HistGradientBoostingModel, AdaBoostingModel, RandomForestModel, \
     XGBoostModel, CatBoostModel, VotingModel
 from enums import EnsembleModels, Frequency
 import model_base as mb

@@ -1,7 +1,6 @@
 from sklearn.ensemble import (GradientBoostingRegressor, HistGradientBoostingRegressor,
                               AdaBoostRegressor, RandomForestRegressor, VotingRegressor)
 from sklearn.tree import DecisionTreeRegressor
-from base_model import BaseModel
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import StandardScaler
 from sklearn.decomposition import PCA
@@ -9,7 +8,8 @@ from xgboost import XGBRegressor
 from catboost import CatBoostRegressor
 from sklearn.model_selection import TimeSeriesSplit
 from sklearn.model_selection import RandomizedSearchCV
-import model_base as mb
+from src.models.base_model import BaseModel
+import src.model_base as mb
 
 
 class BaseEnsembleModel(BaseModel):
